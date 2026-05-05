@@ -64,7 +64,7 @@ export const supabaseService = {
     // Auth & Users
     async login(username: string, password: string) {
         const cleanUsername = username.trim().toLowerCase();
-        let loginEmail = cleanUsername.includes('@') ? cleanUsername : `${cleanUsername}@internal-system.com`;
+        let loginEmail = cleanUsername.includes('@') ? cleanUsername : `${cleanUsername}@hospital.com`;
 
         try {
             // ค้นหาอีเมลจริงจาก username หรือ email ที่กรอกมา
@@ -78,10 +78,21 @@ export const supabaseService = {
                 loginEmail = userRecords[0].email || loginEmail;
             }
         } catch (e) {
+            console.error('Error fetching user email for login:', e);
             // Fallback
         }
         
-        const response = await supabase.auth.signInWithPassword({ email: loginEmail, password: password });
+        let response = await supabase.auth.signInWithPassword({ email: loginEmail, password: password });
+        
+        // หาก login ด้วย @hospital.com หรืออีเมลที่หาได้ไม่สำเร็จ ให้ลองใช้ @internal-system.com
+        if (response.error && response.error.message === 'Invalid login credentials' && !cleanUsername.includes('@')) {
+             const fallbackEmail = `${cleanUsername}@internal-system.com`;
+             const fallbackResponse = await supabase.auth.signInWithPassword({ email: fallbackEmail, password: password });
+             if (!fallbackResponse.error) {
+                 response = fallbackResponse;
+             }
+        }
+
         if (!response.error && response.data.user) {
             await this.logSystemEvent({
                 level: 'INFO',
