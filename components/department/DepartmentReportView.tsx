@@ -61,11 +61,12 @@ const DepartmentReportView: React.FC<DepartmentReportViewProps> = ({ department 
             // Include Ready, PartiallyApproved, Picking, and Submitted as they represent confirmed or pending usage
             if (!['Completed', 'Ready', 'PartiallyApproved', 'Picking', 'Submitted'].includes(req.status)) return false;
             
-            // Fallback for approvedAt to ensure older records or records missing this field still show up
-            const reportDate = req.approvedAt || req.submittedAt || req.createdAt;
-            if (!reportDate) return false;
+            // Fix: Ensure we convert the date string to a Date object before accessing properties
+            const rawDate = req.approvedAt || req.submittedAt || req.createdAt;
+            if (!rawDate) return false;
             
-            return reportDate.getFullYear() === parseInt(year) && (reportDate.getMonth() + 1) === parseInt(month);
+            const dateObj = new Date(rawDate);
+            return dateObj.getFullYear() === parseInt(year) && (dateObj.getMonth() + 1) === parseInt(month);
         });
 
         const itemMap = new Map<string, ReportItem>();

@@ -345,7 +345,10 @@ export const ReportsView: React.FC<ReportsViewProps> = (props) => {
     
                 filteredReqs.forEach(req => {
                     (req.items || []).forEach(item => {
-                        const approvedQty = item.approvedQuantity ?? item.quantity ?? 0;
+                        const approvedQty = (['Completed', 'Ready'].includes(req.status) && (item.approvedQuantity ?? 0) > 0)
+                            ? (item.approvedQuantity || 0)
+                            : (item.quantity || 0);
+
                         if (approvedQty > 0) {
                             const product = productMap.get(item.productId);
                             if (product?.category) {
@@ -411,7 +414,10 @@ export const ReportsView: React.FC<ReportsViewProps> = (props) => {
                 const usageMap = new Map<string, number>();
                 reqsInFiscalYear.forEach(req => {
                     (req.items || []).forEach(item => {
-                        const approvedQty = item.approvedQuantity ?? item.quantity ?? 0;
+                        const approvedQty = (['Completed', 'Ready'].includes(req.status) && (item.approvedQuantity ?? 0) > 0)
+                            ? (item.approvedQuantity || 0)
+                            : (item.quantity || 0);
+
                         if (approvedQty > 0) {
                             usageMap.set(item.productId, (usageMap.get(item.productId) || 0) + approvedQty);
                         }
@@ -545,7 +551,10 @@ export const ReportsView: React.FC<ReportsViewProps> = (props) => {
                     const deptProducts = dataMap.get(req.departmentId)!;
 
                     (req.items || []).forEach(item => {
-                        const approvedQty = item.approvedQuantity ?? item.quantity ?? 0;
+                        const approvedQty = (['Completed', 'Ready'].includes(req.status) && (item.approvedQuantity ?? 0) > 0)
+                            ? (item.approvedQuantity || 0)
+                            : (item.quantity || 0);
+
                         if (approvedQty > 0) {
                             if (!deptProducts.has(item.productId)) deptProducts.set(item.productId, { planned: 0, used: 0 });
                             deptProducts.get(item.productId)!.used += approvedQty;
@@ -629,7 +638,10 @@ export const ReportsView: React.FC<ReportsViewProps> = (props) => {
                     if (deptName && crosstabData[deptName]) {
                         (req.items || []).forEach(item => {
                             const product = productMap.get(item.productId);
-                            const approvedQty = item.approvedQuantity ?? item.quantity ?? 0;
+                            const approvedQty = (['Completed', 'Ready'].includes(req.status) && (item.approvedQuantity ?? 0) > 0)
+                                ? (item.approvedQuantity || 0)
+                                : (item.quantity || 0);
+
                             if (product && approvedQty > 0) {
                                 const value = approvedQty * (item.pricePerUnit ?? product.pricePerUnit ?? 0);
                                 crosstabData[deptName][product.category] += value;
@@ -1044,9 +1056,15 @@ export const ReportsView: React.FC<ReportsViewProps> = (props) => {
                         .filter(item => item.productId === p.id)
                         .reduce((sum, item) => sum + item.quantityReceived, 0);
                         
-                    const disbursedQtySinceStart = disbursedSinceStart.flatMap(req => req.items || [])
-                        .filter(item => item.productId === p.id)
-                        .reduce((sum, item) => sum + (item.approvedQuantity ?? item.quantity ?? 0), 0);
+                    const disbursedQtySinceStart = disbursedSinceStart.flatMap(req => {
+                        const status = req.status;
+                        return (req.items || []).filter(item => item.productId === p.id).map(item => ({...item, status}));
+                    }).reduce((sum, item) => {
+                        const approvedQty = (['Completed', 'Ready'].includes(item.status) && (item.approvedQuantity ?? 0) > 0)
+                            ? (item.approvedQuantity || 0)
+                            : (item.quantity || 0);
+                        return sum + approvedQty;
+                    }, 0);
 
                     const openingBalance = Math.max(0, currentStock - receivedQtySinceStart + disbursedQtySinceStart);
                     
@@ -1054,9 +1072,15 @@ export const ReportsView: React.FC<ReportsViewProps> = (props) => {
                         .filter(item => item.productId === p.id)
                         .reduce((sum, item) => sum + item.quantityReceived, 0);
                         
-                    const disbursedQtyInPeriod = disbursedInPeriod.flatMap(req => req.items || [])
-                        .filter(item => item.productId === p.id)
-                        .reduce((sum, item) => sum + (item.approvedQuantity ?? item.quantity ?? 0), 0);
+                    const disbursedQtyInPeriod = disbursedInPeriod.flatMap(req => {
+                        const status = req.status;
+                        return (req.items || []).filter(item => item.productId === p.id).map(item => ({...item, status}));
+                    }).reduce((sum, item) => {
+                        const approvedQty = (['Completed', 'Ready'].includes(item.status) && (item.approvedQuantity ?? 0) > 0)
+                            ? (item.approvedQuantity || 0)
+                            : (item.quantity || 0);
+                        return sum + approvedQty;
+                    }, 0);
 
                     // Closing balance at range.end
                     // If range.end is in the future, it's current stock
