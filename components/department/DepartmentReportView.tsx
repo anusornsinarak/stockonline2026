@@ -58,8 +58,8 @@ const DepartmentReportView: React.FC<DepartmentReportViewProps> = ({ department 
         
         // Filter requisitions for the selected month and status
         const filteredReqs = requisitions.filter(req => {
-            // Include Ready and PartiallyApproved as they represent confirmed usage
-            if (!['Completed', 'Ready', 'PartiallyApproved', 'Picking'].includes(req.status)) return false;
+            // Include Ready, PartiallyApproved, Picking, and Submitted as they represent confirmed or pending usage
+            if (!['Completed', 'Ready', 'PartiallyApproved', 'Picking', 'Submitted'].includes(req.status)) return false;
             
             // Fallback for approvedAt to ensure older records or records missing this field still show up
             const reportDate = req.approvedAt || req.submittedAt || req.createdAt;
