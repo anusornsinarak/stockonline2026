@@ -252,7 +252,11 @@ export const ReportsView: React.FC<ReportsViewProps> = (props) => {
 
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const [startDate, setStartDate] = useState(toISODateString(startOfMonth));
+    // Adjusted: Default to 1 month ago to show more data initially
+    const defaultStartDate = new Date(today);
+    defaultStartDate.setMonth(today.getMonth() - 1);
+    
+    const [startDate, setStartDate] = useState(toISODateString(defaultStartDate));
     const [endDate, setEndDate] = useState(toISODateString(today));
     const [deptTypeFilter, setDeptTypeFilter] = useState<DepartmentType | 'all'>('all');
     const [deptFilter, setDeptFilter] = useState<string>('all');
@@ -398,8 +402,8 @@ export const ReportsView: React.FC<ReportsViewProps> = (props) => {
                 // 2. Get Usage (Requisitions) for the fiscal year
                 const fiscalYearRange = getFiscalYearDateRange(fiscalYearFilter);
                 const reqsInFiscalYear = (requisitions || []).filter(req => {
-                    const reportDate = req.approvedAt ? new Date(req.approvedAt) : null;
-                    return ['Completed', 'Ready', 'PartiallyApproved'].includes(req.status) &&
+                    const reportDate = req.approvedAt || req.submittedAt || req.createdAt;
+                    return ['Completed', 'Ready', 'PartiallyApproved', 'Picking'].includes(req.status) &&
                            reportDate && reportDate >= fiscalYearRange.start && reportDate <= fiscalYearRange.end;
                 });
 
@@ -508,8 +512,8 @@ export const ReportsView: React.FC<ReportsViewProps> = (props) => {
                 // 2. Get Usage (Requisitions)
                 const fiscalYearRange = getFiscalYearDateRange(fiscalYearFilter);
                 let reqsInFiscalYear = (requisitions || []).filter(req => {
-                    const reportDate = req.approvedAt ? new Date(req.approvedAt) : null;
-                    return ['Completed', 'Ready', 'PartiallyApproved'].includes(req.status) &&
+                    const reportDate = req.approvedAt || req.submittedAt || req.createdAt;
+                    return ['Completed', 'Ready', 'PartiallyApproved', 'Picking'].includes(req.status) &&
                            reportDate && reportDate >= fiscalYearRange.start && reportDate <= fiscalYearRange.end;
                 });
 
@@ -884,7 +888,7 @@ export const ReportsView: React.FC<ReportsViewProps> = (props) => {
                 const lastTxDateMap = new Map<string, Date>();
                 
                 (requisitions || []).forEach(req => {
-                    const reportDate = req.approvedAt ? new Date(req.approvedAt) : null;
+                    const reportDate = req.approvedAt || req.submittedAt || req.createdAt;
                     if (reportDate) {
                         const txDate = reportDate;
                         (req.items || []).forEach(item => {
@@ -1018,8 +1022,8 @@ export const ReportsView: React.FC<ReportsViewProps> = (props) => {
                     return grn.status === 'Completed' && receivedDate >= range.start && receivedDate <= range.end;
                 });
                 const disbursedInPeriod = (requisitions || []).filter(req => {
-                    const reportDate = req.approvedAt ? new Date(req.approvedAt) : null;
-                    return ['Completed', 'Ready', 'PartiallyApproved'].includes(req.status) && reportDate && reportDate >= range.start && reportDate <= range.end;
+                    const reportDate = req.approvedAt || req.submittedAt || req.createdAt;
+                    return ['Completed', 'Ready', 'PartiallyApproved', 'Picking'].includes(req.status) && reportDate && reportDate >= range.start && reportDate <= range.end;
                 });
 
                 // 2. To calculate opening balance at range.start, we need all transactions from range.start to NOW
@@ -1029,8 +1033,8 @@ export const ReportsView: React.FC<ReportsViewProps> = (props) => {
                     return grn.status === 'Completed' && receivedDate >= range.start && receivedDate <= now;
                 });
                 const disbursedSinceStart = (requisitions || []).filter(req => {
-                    const reportDate = req.approvedAt ? new Date(req.approvedAt) : null;
-                    return ['Completed', 'Ready', 'PartiallyApproved'].includes(req.status) && reportDate && reportDate >= range.start && reportDate <= now;
+                    const reportDate = req.approvedAt || req.submittedAt || req.createdAt;
+                    return ['Completed', 'Ready', 'PartiallyApproved', 'Picking'].includes(req.status) && reportDate && reportDate >= range.start && reportDate <= now;
                 });
 
                 const tableData: any[] = products.map(p => {

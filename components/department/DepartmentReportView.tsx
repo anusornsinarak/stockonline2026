@@ -56,12 +56,15 @@ const DepartmentReportView: React.FC<DepartmentReportViewProps> = ({ department 
     const reportData = useMemo(() => {
         const [year, month] = selectedMonth.split('-');
         
-        // Filter requisitions for the selected month and status 'Completed'
+        // Filter requisitions for the selected month and status
         const filteredReqs = requisitions.filter(req => {
-            if (req.status !== 'Completed') return false;
-            // Strictly use approvedAt for reports as per user requirement
-            const reportDate = req.approvedAt ? new Date(req.approvedAt) : null;
+            // Include Ready and PartiallyApproved as they represent confirmed usage
+            if (!['Completed', 'Ready', 'PartiallyApproved', 'Picking'].includes(req.status)) return false;
+            
+            // Fallback for approvedAt to ensure older records or records missing this field still show up
+            const reportDate = req.approvedAt || req.submittedAt || req.createdAt;
             if (!reportDate) return false;
+            
             return reportDate.getFullYear() === parseInt(year) && (reportDate.getMonth() + 1) === parseInt(month);
         });
 
@@ -69,12 +72,15 @@ const DepartmentReportView: React.FC<DepartmentReportViewProps> = ({ department 
 
         filteredReqs.forEach(req => {
             req.items?.forEach(item => {
-                if (['Approved', 'Fulfilled', 'Loaned', 'LoanFulfilled'].includes(item.status) && item.approvedQuantity && item.approvedQuantity > 0) {
+                // Use approvedQuantity if available, otherwise fallback to requested quantity for legacy data
+                const approvedQty = item.approvedQuantity ?? item.quantity ?? 0;
+                
+                if (['Approved', 'Fulfilled', 'Loaned', 'LoanFulfilled', 'Pending'].includes(item.status) && approvedQty > 0) {
                     const product = products.find(p => p.id === item.productId);
                     if (!product) return;
 
                     const existing = itemMap.get(item.productId);
-                    const qty = item.approvedQuantity;
+                    const qty = approvedQty;
                     const pricePerUnit = item.pricePerUnit || product.pricePerUnit || 0;
                     const value = qty * pricePerUnit;
 

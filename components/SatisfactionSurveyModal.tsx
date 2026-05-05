@@ -40,7 +40,10 @@ const SatisfactionSurveyModal: React.FC<SatisfactionSurveyModalProps> = ({ user,
                     }
                 }
             } catch (error) {
-                console.error("Survey check failed", error);
+                // Suppress internal network errors that don't affect core functionality
+                if (!(error instanceof TypeError && error.message.includes('fetch'))) {
+                    console.error("Survey check failed", error);
+                }
             } finally {
                 setIsLoading(false);
             }

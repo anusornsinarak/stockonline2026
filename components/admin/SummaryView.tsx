@@ -90,10 +90,13 @@ export const SummaryView: React.FC<SummaryViewProps> = ({ data, requisitions, fi
     const totalApprovedValue = useMemo(() => {
         return (requisitions || [])
             .filter(r => {
-                if (!['Ready', 'PartiallyApproved', 'Completed'].includes(r.status)) return false;
-                // Strictly use approvedAt for fiscal year budget calculation
-                if (!r.approvedAt) return false;
-                const approvedDate = new Date(r.approvedAt);
+                if (!['Ready', 'PartiallyApproved', 'Completed', 'Picking'].includes(r.status)) return false;
+                
+                // Use fallback date for fiscal year budget calculation
+                const reportDate = r.approvedAt || r.submittedAt || r.createdAt;
+                if (!reportDate) return false;
+                
+                const approvedDate = new Date(reportDate);
                 return getFiscalYearBE(approvedDate) === fiscalYear;
             })
             .reduce((sum, req) => {
