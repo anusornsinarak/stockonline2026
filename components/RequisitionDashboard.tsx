@@ -327,6 +327,7 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
         surveyData: any;
         deptProducts: Product[];
         deptInventory: DepartmentInventoryItem[];
+        activeAnnouncement?: { content: string; enabled: boolean; id: string | null; } | null;
     } | null>(null);
     const [isLoadingForm, setIsLoadingForm] = useState(false);
     const [selectedReqIds, setSelectedReqIds] = useState<Set<string>>(new Set());
@@ -456,14 +457,15 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
     const prepareFormData = async () => {
         setIsLoadingForm(true);
         try {
-            const [inventory, expiringStock, surveyData, deptProducts, deptInventory] = await Promise.all([
+            const [inventory, expiringStock, surveyData, deptProducts, deptInventory, activeAnnouncement] = await Promise.all([
                 supabaseService.getInventory(),
                 supabaseService.getExpiringStock(),
                 supabaseService.getSurveyForDepartment(department.id),
                 supabaseService.getProductsForDepartment(department.id),
-                supabaseService.getDepartmentInventory(department.id)
+                supabaseService.getDepartmentInventory(department.id),
+                supabaseService.getAnnouncementSettings()
             ]);
-            setExtraData({ inventory, expiringStock, surveyData, deptProducts, deptInventory });
+            setExtraData({ inventory, expiringStock, surveyData, deptProducts, deptInventory, activeAnnouncement: activeAnnouncement as any });
             setIsCreating(true);
         } catch (e) {
             console.error(e);
@@ -520,7 +522,7 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
                 pendingRequisitions={requisitions.filter(r => ['Submitted', 'PartiallyApproved', 'Picking'].includes(r.status))}
                 personnel={personnel}
                 requisitionHistory={requisitions}
-                requisitionType="Normal"
+                requisitionType={(extraData.activeAnnouncement?.enabled && extraData.activeAnnouncement?.content?.includes("ไม่ใช่สัปดาห์")) ? "OffCycle" : "Normal"}
                 deptInventory={extraData.deptInventory}
                 initialRequisition={editingReq}
             />
