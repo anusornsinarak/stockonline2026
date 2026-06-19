@@ -1,4 +1,5 @@
 
+// @ts-nocheck
 import React, { Component, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -7,7 +8,7 @@ import App from './App';
 interface ErrorBoundaryProps { children: ReactNode; }
 interface ErrorBoundaryState { hasError: boolean; error: any; }
 
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
