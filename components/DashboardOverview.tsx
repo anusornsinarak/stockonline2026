@@ -6,7 +6,6 @@ import ChartBarIcon from './icons/ChartBarIcon';
 import CurrencyDollarIcon from './icons/CurrencyDollarIcon';
 import ExclamationTriangleIcon from './icons/ExclamationTriangleIcon';
 import BuildingOfficeIcon from './icons/BuildingOfficeIcon';
-import TableTemplate from './admin/TableTemplate';
 
 interface DashboardOverviewProps {
     user: User;
@@ -17,6 +16,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ user }) =>
     const [requisitions, setRequisitions] = useState<Requisition[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [departments, setDepartments] = useState<Department[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -100,19 +100,30 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ user }) =>
             });
         });
 
+        let filteredProducts = Array.from(productMap.values());
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            filteredProducts = filteredProducts.filter(p => (p.name || '').toLowerCase().includes(query));
+        }
+        
+        const filteredProductIds = new Set(filteredProducts.map(p => p.id));
+
         const topFrequent = Array.from(reqFrequency.entries())
+            .filter(([id]) => filteredProductIds.has(id))
             .map(([id, count]) => ({ product: productMap.get(id), count }))
             .filter(x => x.product)
             .sort((a, b) => b.count - a.count)
             .slice(0, 5);
 
         const topValue = Array.from(reqValue.entries())
+            .filter(([id]) => filteredProductIds.has(id))
             .map(([id, value]) => ({ product: productMap.get(id), value }))
             .filter(x => x.product)
             .sort((a, b) => b.value - a.value)
             .slice(0, 5);
         
         const topQuantityWatch = Array.from(reqQuantity.entries())
+            .filter(([id]) => filteredProductIds.has(id))
             .map(([id, qty]) => ({ product: productMap.get(id), qty }))
             .filter(x => x.product)
             .sort((a, b) => b.qty - a.qty)
@@ -128,12 +139,26 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ user }) =>
 
         return { topFrequent, topValue, topQuantityWatch, topOffCycle, totalCostThisPeriod };
 
-    }, [requisitions, products, departments]);
+    }, [requisitions, products, departments, searchQuery]);
 
     if (isLoading) return <LoadingScreen message="กำลังโหลดข้อมูลแดชบอร์ด..." />;
 
     return (
         <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">ภาพรวมระบบ</h2>
+                <div className="relative">
+                    <input
+                        type="text"
+                        placeholder="ค้นหาชื่อเวชภัณฑ์..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg w-full md:w-64 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                    <svg className="w-5 h-5 absolute left-3 top-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gradient-to-br from-sky-500 to-indigo-600 p-6 rounded-2xl text-white shadow-md">
                     <h3 className="font-semibold text-sky-100 flex items-center gap-2 mb-2">
