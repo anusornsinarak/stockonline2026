@@ -6,6 +6,7 @@ import ChartBarIcon from './icons/ChartBarIcon';
 import CurrencyDollarIcon from './icons/CurrencyDollarIcon';
 import ExclamationTriangleIcon from './icons/ExclamationTriangleIcon';
 import BuildingOfficeIcon from './icons/BuildingOfficeIcon';
+import MegaphoneIcon from './icons/MegaphoneIcon';
 
 interface DashboardOverviewProps {
     user: User;
@@ -17,20 +18,23 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ user }) =>
     const [products, setProducts] = useState<Product[]>([]);
     const [departments, setDepartments] = useState<Department[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [announcement, setAnnouncement] = useState<{ content: string; enabled: boolean } | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const [prods, depts, reqs] = await Promise.all([
+                const [prods, depts, reqs, activeAnnouncement] = await Promise.all([
                     supabaseService.getProducts(),
                     supabaseService.getDepartments(),
                     user.role === 'Department' && user.departmentId
                         ? supabaseService.getRequisitionsForDepartment(user.departmentId)
-                        : supabaseService.getRequisitionsForAdmin()
+                        : supabaseService.getRequisitionsForAdmin(),
+                    supabaseService.getAnnouncementSettings()
                 ]);
                 setProducts(prods);
                 setDepartments(depts);
+                setAnnouncement(activeAnnouncement);
                 
                 // Filter requests roughly for current year/month to make dashboard relevant
                 const now = new Date();
@@ -238,28 +242,23 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ user }) =>
                     </div>
                 </div>
 
-                {user.role !== 'Department' && (
                 <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
                     <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
-                        <BuildingOfficeIcon className="w-5 h-5 text-purple-500" />
-                        การเบิกนอกยอด/ไม่ตรงรอบ (บ่อยที่สุด)
+                        <MegaphoneIcon className="w-5 h-5 text-purple-500" />
+                        ประกาศ / สถานะการเบิกเวชภัณฑ์
                     </h3>
                     <div className="space-y-3">
-                        {stats.topOffCycle.map((item, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300 flex items-center justify-center font-bold text-sm">
-                                        {idx + 1}
-                                    </div>
-                                    <div className="text-sm font-medium text-slate-700 dark:text-slate-200">{item.dept?.name}</div>
-                                </div>
-                                <div className="text-sm font-bold text-purple-600 dark:text-purple-400">{item.count} <span className="font-normal text-slate-500">บิล</span></div>
+                        {announcement && announcement.enabled ? (
+                            <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 min-h-[100px] flex items-center justify-center">
+                                <div className="prose dark:prose-invert prose-sm max-w-none text-slate-700 dark:text-slate-200 w-full text-center" dangerouslySetInnerHTML={{ __html: announcement.content }} />
                             </div>
-                        ))}
-                        {stats.topOffCycle.length === 0 && <p className="text-center text-slate-500 py-4">เดือนนี้ไม่มีการเบิกนอกยอด</p>}
+                        ) : (
+                            <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 min-h-[100px] flex items-center justify-center">
+                                <p className="text-center text-slate-500">ไม่มีประกาศในขณะนี้</p>
+                            </div>
+                        )}
                     </div>
                 </div>
-                )}
             </div>
         </div>
     )
