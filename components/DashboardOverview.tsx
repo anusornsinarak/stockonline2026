@@ -6,7 +6,6 @@ import ChartBarIcon from './icons/ChartBarIcon';
 import CurrencyDollarIcon from './icons/CurrencyDollarIcon';
 import ExclamationTriangleIcon from './icons/ExclamationTriangleIcon';
 import BuildingOfficeIcon from './icons/BuildingOfficeIcon';
-import MegaphoneIcon from './icons/MegaphoneIcon';
 
 interface DashboardOverviewProps {
     user: User;
@@ -267,24 +266,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ user }) =>
                     </div>
                 </div>
                 )}
-
-                <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
-                        <MegaphoneIcon className="w-5 h-5 text-purple-500" />
-                        ประกาศ / สถานะการเบิกเวชภัณฑ์
-                    </h3>
-                    <div className="space-y-3">
-                        {announcement && announcement.enabled ? (
-                            <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 min-h-[100px] flex items-center justify-center">
-                                <div className="prose dark:prose-invert prose-sm max-w-none text-slate-700 dark:text-slate-200 w-full text-center" dangerouslySetInnerHTML={{ __html: announcement.content }} />
-                            </div>
-                        ) : (
-                            <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 min-h-[100px] flex items-center justify-center">
-                                <p className="text-center text-slate-500">ไม่มีประกาศในขณะนี้</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
             </div>
         </div>
     )
