@@ -132,9 +132,9 @@ const ManageAnnouncementsView: React.FC = () => {
                     </h3>
                     <p className="text-sm text-slate-500">สร้างและเลือกประกาศที่จะให้แสดงที่หน้าเข้าสู่ระบบ</p>
                 </div>
-                <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-4 bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300 ml-2">เปิดการแสดงผลภาพรวม</span>
+                <div className="flex flex-col gap-3">
+                    <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm min-w-[280px]">
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">เปิดการแสดงผลประกาศระบบ</span>
                         <button
                             onClick={handleToggleMaster}
                             className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 ${activeConfig.enabled ? 'bg-green-600' : 'bg-slate-300 dark:bg-slate-600'}`}
@@ -142,8 +142,11 @@ const ManageAnnouncementsView: React.FC = () => {
                             <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${activeConfig.enabled ? 'translate-x-5' : 'translate-x-0'}`}/>
                         </button>
                     </div>
-                    <div className="flex items-center gap-4 bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                        <span className="text-sm font-bold text-slate-600 dark:text-slate-300 ml-2">เปิดโหมด "ไม่ใช่สัปดาห์เบิก" (บังคับระบุเหตุผล)</span>
+                    <div className="flex justify-between items-center bg-amber-50 dark:bg-amber-900/20 p-3 rounded-xl border border-amber-200 dark:border-amber-700/50 shadow-sm min-w-[280px]">
+                        <div className="flex flex-col">
+                            <span className="text-sm font-bold text-amber-800 dark:text-amber-300">โหมด "ไม่ใช่สัปดาห์เบิก"</span>
+                            <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">บังคับระบุเหตุผลการเบิกนอกรอบ</span>
+                        </div>
                         <button
                             onClick={async () => {
                                 const newConfig = { ...activeConfig, isOffCycleWeek: !activeConfig.isOffCycleWeek };
@@ -152,7 +155,7 @@ const ManageAnnouncementsView: React.FC = () => {
                                 setStatusMessage({ type: 'success', text: 'บันทึกการตั้งค่าสัปดาห์เบิกเรียบร้อยแล้ว' });
                                 setTimeout(() => setStatusMessage(null), 3000);
                             }}
-                            className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 ${activeConfig.isOffCycleWeek ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                            className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 ml-4 ${activeConfig.isOffCycleWeek ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-600'}`}
                         >
                             <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${activeConfig.isOffCycleWeek ? 'translate-x-5' : 'translate-x-0'}`}/>
                         </button>
