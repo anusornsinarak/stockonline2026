@@ -55,7 +55,7 @@ const AutomatedRequisitionForm: React.FC<AutomatedRequisitionFormProps> = ({ dep
     const currentItemIds = useMemo(() => new Set(items.map(p => p.productId)), [items]);
     const isEditMode = !!initialRequisition;
     const type = initialRequisition?.type || requisitionType;
-    const isUrgentFlow = type === 'Urgent';
+    const requiresReason = type === 'Urgent' || type === 'OffCycle';
 
     const uniquePositions = useMemo(() => {
         const positions = new Set(personnel.map(p => p.position).filter(p => p && p.trim() !== ''));
@@ -179,8 +179,8 @@ const AutomatedRequisitionForm: React.FC<AutomatedRequisitionFormProps> = ({ dep
         } else { 
             const now = new Date();
             const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-            const defaultName = isUrgentFlow 
-                ? `ใบเบิกด่วน ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear() + 543}`
+            const defaultName = requiresReason 
+                ? `ใบเบิก${type === 'Urgent' ? 'ด่วน' : 'นอกรอบ'} ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear() + 543}`
                 : `ใบเบิก ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear() + 543}`;
             setName(defaultName);
 
@@ -207,7 +207,7 @@ const AutomatedRequisitionForm: React.FC<AutomatedRequisitionFormProps> = ({ dep
             setItems([]); 
             setUrgentReason('');
         }
-    }, [initialRequisition, department.id, isUrgentFlow, personnel]);
+    }, [initialRequisition, department.id, requiresReason, personnel]);
 
     const handleAddItem = (product: Product) => {
         setIsCartHidden(false);
@@ -248,6 +248,11 @@ const AutomatedRequisitionForm: React.FC<AutomatedRequisitionFormProps> = ({ dep
 
         if (!name.trim() || (status === 'Submitted' && (!requesterName.trim() || !requesterPosition.trim()))) {
             setError('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
+            return;
+        }
+
+        if (status === 'Submitted' && requiresReason && !urgentReason.trim()) {
+            setError('กรุณาระบุเหตุผลการเบิก');
             return;
         }
 
@@ -319,7 +324,7 @@ const AutomatedRequisitionForm: React.FC<AutomatedRequisitionFormProps> = ({ dep
                 name,
                 status,
                 type: type,
-                urgentReason: isUrgentFlow ? urgentReason.trim() : undefined,
+                urgentReason: requiresReason ? urgentReason.trim() : undefined,
                 submittedAt: status === 'Submitted' ? new Date() : null,
                 requesterName: requesterName.trim() || null,
                 requesterPosition: requesterPosition.trim() || null,
@@ -509,7 +514,7 @@ const AutomatedRequisitionForm: React.FC<AutomatedRequisitionFormProps> = ({ dep
         handleScrollToBasket();
     };
 
-    const title = isEditMode ? 'แก้ไขใบเบิก' : isUrgentFlow ? 'สร้างใบเบิกด่วน / ฉุกเฉิน' : 'สร้างใบเบิก';
+    const title = isEditMode ? 'แก้ไขใบเบิก' : requiresReason ? `สร้างใบเบิก${type === 'Urgent' ? 'ด่วน / ฉุกเฉิน' : 'นอกรอบ'}` : 'สร้างใบเบิก';
 
     return (
         <div className="animate-fade-in">
@@ -517,6 +522,23 @@ const AutomatedRequisitionForm: React.FC<AutomatedRequisitionFormProps> = ({ dep
                 <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h2>
                 <button onClick={handleCancel} className="text-sm font-medium text-slate-600 dark:text-slate-300">ยกเลิก</button>
             </div>
+
+            {error && <p className="mb-4 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/50 p-3 rounded-lg border border-red-200 dark:border-red-800">{error}</p>}
+            
+            {requiresReason && (
+                <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-l-4 border-amber-400 rounded-r-lg flex items-start gap-3">
+                    <ExclamationTriangleIcon className="w-6 h-6 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <h4 className="font-bold">{type === 'Urgent' ? 'การเบิกด่วน/ฉุกเฉิน' : 'การเบิกนอกรอบ'}</h4>
+                        <p className="text-sm">
+                            {type === 'Urgent' 
+                                ? 'นี่คือการเบิกด่วน/ฉุกเฉิน กรุณาระบุเหตุผลความจำเป็นในการเบิกด้านล่าง'
+                                : 'สัปดาห์นี้ไม่ใช่รอบเบิกจ่าย หากยืนยันการเบิกจะถือว่าเป็นการเบิกนอกรอบ กรุณาระบุเหตุผลในการเบิกด้านล่าง'
+                            }
+                        </p>
+                    </div>
+                </div>
+            )}
             
              {!isEditMode && (
                 <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 border-l-4 border-amber-400 rounded-r-lg flex items-start gap-3">
@@ -618,11 +640,6 @@ const AutomatedRequisitionForm: React.FC<AutomatedRequisitionFormProps> = ({ dep
                              <div>
                                 <div className="flex justify-between items-center">
                                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">ชื่อผู้เบิก</label>
-                                    {/* {getSignature() && (
-                                        <button type="button" onClick={() => { setIsSubmittingWithSignature(false); setIsSignatureModalOpen(true); }} className="text-xs text-sky-600 hover:underline">
-                                            แก้ไขลายเซ็น
-                                        </button>
-                                    )} */}
                                 </div>
                                 <input list="personnel-list" value={requesterName} onChange={e => handleNameChange(e.target.value)} className="mt-1 w-full border-slate-300 dark:border-slate-600 dark:bg-slate-700 rounded-lg" />
                                 <datalist id="personnel-list">
@@ -637,6 +654,12 @@ const AutomatedRequisitionForm: React.FC<AutomatedRequisitionFormProps> = ({ dep
                                 </datalist>
                             </div>
                         </div>
+                        {requiresReason && (
+                            <div>
+                                <label className="block text-sm font-medium text-amber-700 dark:text-amber-500">เหตุผลการเบิก{type === 'Urgent' ? 'ด่วน' : 'นอกรอบ'} *</label>
+                                <input type="text" required value={urgentReason} onChange={e => setUrgentReason(e.target.value)} className="mt-1 w-full border-amber-300 dark:border-amber-600 dark:bg-slate-700 rounded-lg focus:ring-amber-500 focus:border-amber-500" placeholder="ระบุเหตุผลความจำเป็น..." />
+                            </div>
+                        )}
                     </div>
                     
                     <div className="flex-grow border rounded-lg overflow-y-auto max-h-[40vh] lg:max-h-none dark:border-slate-700">

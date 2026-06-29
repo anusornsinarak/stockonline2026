@@ -327,7 +327,7 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
         surveyData: any;
         deptProducts: Product[];
         deptInventory: DepartmentInventoryItem[];
-        activeAnnouncement?: { content: string; enabled: boolean; id: string | null; } | null;
+        activeAnnouncement?: { content: string; enabled: boolean; id: string | null; isOffCycleWeek?: boolean; } | null;
     } | null>(null);
     const [isLoadingForm, setIsLoadingForm] = useState(false);
     const [selectedReqIds, setSelectedReqIds] = useState<Set<string>>(new Set());
@@ -522,7 +522,7 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
                 pendingRequisitions={requisitions.filter(r => ['Submitted', 'PartiallyApproved', 'Picking'].includes(r.status))}
                 personnel={personnel}
                 requisitionHistory={requisitions}
-                requisitionType={(extraData.activeAnnouncement?.enabled && extraData.activeAnnouncement?.content?.includes("ไม่ใช่สัปดาห์")) ? "OffCycle" : "Normal"}
+                requisitionType={(extraData.activeAnnouncement?.isOffCycleWeek && department.type !== 'External') ? "OffCycle" : "Normal"}
                 deptInventory={extraData.deptInventory}
                 initialRequisition={editingReq}
             />
