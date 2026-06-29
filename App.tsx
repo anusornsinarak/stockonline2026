@@ -106,10 +106,15 @@ const App: React.FC = () => {
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
-           supabaseService.getUserProfile(session.user.id).then(u => {
-               setUser(u);
-               if(u?.departmentId) supabaseService.getDepartments().then(ds => setDepartment(ds.find(d => d.id === u.departmentId) || null));
-           });
+           if (_event === 'SIGNED_IN' || _event === 'INITIAL_SESSION') {
+               supabaseService.getUserProfile(session.user.id).then(u => {
+                   setUser(prev => (prev && prev.id === u?.id && prev.role === u?.role) ? prev : u);
+                   if(u?.departmentId) supabaseService.getDepartments().then(ds => {
+                       const found = ds.find(d => d.id === u.departmentId) || null;
+                       setDepartment(prev => (prev && prev.id === found?.id) ? prev : found);
+                   });
+               });
+           }
       } else {
         setUser(null);
         setDepartment(null);
@@ -122,8 +127,11 @@ const App: React.FC = () => {
         setSession(session);
          if (session?.user) {
            supabaseService.getUserProfile(session.user.id).then(u => {
-               setUser(u);
-               if(u?.departmentId) supabaseService.getDepartments().then(ds => setDepartment(ds.find(d => d.id === u.departmentId) || null));
+               setUser(prev => (prev && prev.id === u?.id && prev.role === u?.role) ? prev : u);
+               if(u?.departmentId) supabaseService.getDepartments().then(ds => {
+                   const found = ds.find(d => d.id === u.departmentId) || null;
+                   setDepartment(prev => (prev && prev.id === found?.id) ? prev : found);
+               });
            });
       }
         setIsLoading(false);
