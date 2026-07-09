@@ -33,7 +33,6 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<Record<string, { quantity: number; price: number }>>({});
   const [prevYearUsage, setPrevYearUsage] = useState<Record<string, number>>({});
-  const [prevYearSurvey, setPrevYearSurvey] = useState<Record<string, number>>({});
   const [lockedProducts, setLockedProducts] = useState<Record<string, string>>({});
   const [fySettings, setFySettings] = useState({ fy_survey_open: false, fy_survey_year: 2570, fy_previous_year: 2569 });
   const [isLoading, setIsLoading] = useState(true);
@@ -266,6 +265,7 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
                     <thead className="bg-slate-50 dark:bg-slate-700/50">
                         <tr>
                             <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">รายการเวชภัณฑ์ / หน่วย</th>
+                            <th scope="col" className="px-4 py-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">แผนเก่า ({fySettings.fy_previous_year})</th>
                             <th scope="col" className="px-4 py-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">ใช้จริงปี {fySettings.fy_previous_year}</th>
                             <th scope="col" className="px-4 py-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">แนะนำ</th>
                             <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider w-40">สำรวจปี {fySettings.fy_survey_year}</th>
@@ -276,7 +276,7 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
                         {products.map(product => {
                             const isTemporary = !assignedProductIds.has(product.id);
                             const totalSurveyed = totalSurveyedMap.get(product.id) || 0;
-                            const plannedQty = planMap.get(product.id);
+                            const plannedQty = planMap.get(product.id) || 0; // Using plan from previous year as old survey baseline
                             const isOverPlan = plannedQty !== undefined && totalSurveyed > plannedQty;
                             
                             const usage = prevYearUsage[product.id] || 0;
@@ -306,6 +306,9 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
                                             </div>
                                         )}
                                     </div>
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-center text-slate-500 dark:text-slate-500">
+                                    {plannedQty.toLocaleString()}
                                 </td>
                                 <td className="px-4 py-4 whitespace-nowrap text-sm text-center text-slate-600 dark:text-slate-400 font-medium">
                                     {usage.toLocaleString()}
@@ -349,7 +352,7 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
                         )})}
                          {products.length === 0 && (
                             <tr>
-                                <td colSpan={3} className="text-center text-slate-500 dark:text-slate-400 py-8">
+                                <td colSpan={6} className="text-center text-slate-500 dark:text-slate-400 py-8">
                                     ไม่มีรายการในแบบสำรวจนี้ <br/>
                                     คุณสามารถค้นหาและเพิ่มรายการจากคลังกลางได้ หรือติดต่อผู้ดูแลระบบเพื่อกำหนดรายการสำหรับหน่วยงานของคุณ
                                 </td>
