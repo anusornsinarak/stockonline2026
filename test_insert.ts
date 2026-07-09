@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from './supabaseClient.js';
 async function test() {
   const dept = await supabase.from('departments').select('id').limit(1).single();

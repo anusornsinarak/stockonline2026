@@ -506,6 +506,45 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
         setIsPrintingReport(true);
     };
 
+    const [reportType, setReportType] = useState<'list' | 'summary'>('list');
+    const [selectedProductId, setSelectedProductId] = useState<string>('all');
+
+    const productUsageSummary = useMemo(() => {
+        const summaryMap = new Map<string, { quantity: number; value: number }>();
+        
+        filteredRequisitions.forEach(req => {
+            const isProcessed = ['Picking', 'PartiallyApproved', 'Ready', 'Completed'].includes(req.status);
+            if (!isProcessed) return;
+
+            (req.items || []).forEach(item => {
+                if (item.status === 'Rejected') return;
+                if (selectedProductId !== 'all' && item.productId !== selectedProductId) return;
+
+                const product = productMap.get(item.productId);
+                const price = item.pricePerUnit ?? item.product?.pricePerUnit ?? product?.pricePerUnit ?? 0;
+                const qty = (item.approvedQuantity !== null && item.approvedQuantity !== undefined) 
+                    ? item.approvedQuantity 
+                    : item.quantity;
+                
+                const existing = summaryMap.get(item.productId) || { quantity: 0, value: 0 };
+                summaryMap.set(item.productId, {
+                    quantity: existing.quantity + qty,
+                    value: existing.value + (qty * price)
+                });
+            });
+        });
+
+        return Array.from(summaryMap.entries()).map(([productId, data]) => ({
+            productId,
+            ...data,
+            product: productMap.get(productId)
+        })).sort((a, b) => (a.product?.name || '').localeCompare(b.product?.name || '', 'th'));
+    }, [filteredRequisitions, productMap, selectedProductId]);
+
+    const summaryTotalValue = useMemo(() => {
+        return productUsageSummary.reduce((sum, item) => sum + item.value, 0);
+    }, [productUsageSummary]);
+
     if (isLoading) return <LoadingScreen message="กำลังโหลดข้อมูล..." />;
 
     if (isCreating && extraData) {
@@ -601,53 +640,93 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
                 </div>
 
                 {/* Filter Controls */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 bg-slate-50 dark:bg-slate-700/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-600">
-                    <div className="flex items-center gap-2">
-                        <CalendarDaysIcon className="w-5 h-5 text-slate-500" />
-                        <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">ตัวกรองข้อมูล:</span>
-                    </div>
-                    <div className="flex gap-2 w-full sm:w-auto">
-                        {selectedReqIds.size > 0 && (
-                            <button 
-                                onClick={handlePrintSelected}
-                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-xl hover:bg-blue-700 transition-colors shadow-md"
+                <div className="flex flex-col gap-4 mb-6 bg-slate-50 dark:bg-slate-700/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-600">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-xl">
+                                <button 
+                                    onClick={() => setReportType('list')}
+                                    className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${reportType === 'list' ? 'bg-white dark:bg-slate-700 text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    รายการใบเบิก
+                                </button>
+                                <button 
+                                    onClick={() => setReportType('summary')}
+                                    className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${reportType === 'summary' ? 'bg-white dark:bg-slate-700 text-sky-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    สรุปการเบิกรายเวชภัณฑ์
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                            {reportType === 'list' && selectedReqIds.size > 0 && (
+                                <button 
+                                    onClick={handlePrintSelected}
+                                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-xl hover:bg-blue-700 transition-colors shadow-md"
+                                >
+                                    <PrinterIcon className="w-5 h-5" />
+                                    <span className="text-sm">พิมพ์ ({selectedReqIds.size})</span>
+                                </button>
+                            )}
+                            <select 
+                                value={selectedMonth} 
+                                onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                                className="flex-1 sm:flex-none p-2 text-sm border rounded-xl dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-2 focus:ring-sky-500"
                             >
-                                <PrinterIcon className="w-5 h-5" />
-                                <span className="text-sm">พิมพ์ ({selectedReqIds.size})</span>
-                            </button>
-                        )}
-                        <select 
-                            value={selectedMonth} 
-                            onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                            className="flex-1 sm:flex-none p-2 text-sm border rounded-xl dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-2 focus:ring-sky-500"
-                        >
-                            <option value="all">ทุกเดือน</option>
-                            {monthNames.map((m, idx) => (
-                                <option key={idx} value={idx + 1}>{m}</option>
-                            ))}
-                        </select>
-                        <select 
-                            value={selectedYear} 
-                            onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                            className="flex-1 sm:flex-none p-2 text-sm border rounded-xl dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-2 focus:ring-sky-500"
-                        >
-                            <option value="all">ทุกปี</option>
-                            {yearOptions.map(y => (
-                                <option key={y} value={y}>{y + 543}</option>
-                            ))}
-                        </select>
+                                <option value="all">ทุกเดือน</option>
+                                {monthNames.map((m, idx) => (
+                                    <option key={idx} value={idx + 1}>{m}</option>
+                                ))}
+                            </select>
+                            <select 
+                                value={selectedYear} 
+                                onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                                className="flex-1 sm:flex-none p-2 text-sm border rounded-xl dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-2 focus:ring-sky-500"
+                            >
+                                <option value="all">ทุกปี</option>
+                                {yearOptions.map(y => (
+                                    <option key={y} value={y}>{y + 543}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
+                    
+                    {reportType === 'summary' && (
+                        <div className="flex flex-col sm:flex-row items-center gap-3 pt-3 border-t border-slate-200 dark:border-slate-600">
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">ค้นหารายการ:</span>
+                            <div className="relative flex-grow w-full">
+                                <select 
+                                    value={selectedProductId}
+                                    onChange={(e) => setSelectedProductId(e.target.value)}
+                                    className="w-full p-2 text-sm border rounded-xl dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-2 focus:ring-sky-500 appearance-none"
+                                >
+                                    <option value="all">แสดงทุกรายการ</option>
+                                    {Array.from(new Set(filteredRequisitions.flatMap(r => (r.items || []).map(i => i.productId))))
+                                        .map(pid => {
+                                            const p = productMap.get(pid);
+                                            return <option key={pid} value={pid}>{p?.name || pid}</option>;
+                                        })
+                                        .sort((a, b) => (a.props.children as string).localeCompare(b.props.children as string, 'th'))
+                                    }
+                                </select>
+                                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                    <ChevronDownIcon className="w-4 h-4 text-slate-400" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="space-y-4">
-                    {filteredRequisitions.length === 0 ? (
-                        <div className="text-center py-16 text-slate-500 dark:text-slate-400 border-2 border-dashed rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
-                            <InboxIcon className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                            <p className="text-lg font-medium">ไม่พบรายการใบเบิกในเดือนนี้</p>
-                            <button onClick={handleCreateClick} className="mt-4 text-sky-600 hover:underline">สร้างใบเบิกใหม่</button>
-                        </div>
-                    ) : (
-                        filteredRequisitions.slice((currentPage-1)*REQUISITIONS_PER_PAGE, currentPage*REQUISITIONS_PER_PAGE).map(req => {
+                    {reportType === 'list' ? (
+                        filteredRequisitions.length === 0 ? (
+                            <div className="text-center py-16 text-slate-500 dark:text-slate-400 border-2 border-dashed rounded-2xl border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+                                <InboxIcon className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                                <p className="text-lg font-medium">ไม่พบรายการใบเบิกในเดือนนี้</p>
+                                <button onClick={handleCreateClick} className="mt-4 text-sky-600 hover:underline">สร้างใบเบิกใหม่</button>
+                            </div>
+                        ) : (
+                            filteredRequisitions.slice((currentPage-1)*REQUISITIONS_PER_PAGE, currentPage*REQUISITIONS_PER_PAGE).map(req => {
                         const isExpanded = expandedReqs.has(req.id);
                         const statusInfo = requisitionStatusMap[req.status] || { text: 'N/A', color: 'bg-gray-200' };
                         
@@ -868,33 +947,86 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
                                 )}
                             </div>
                         );
-                    }) )}
+                    })
+                )) : (
+                        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-600">
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">รายการเวชภัณฑ์</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">หน่วย</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-center">จำนวนที่เบิก (รวม)</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">มูลค่ารวม (บาท)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                        {productUsageSummary.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={4} className="px-6 py-10 text-center text-slate-500">ไม่พบข้อมูลสรุปการเบิก</td>
+                                            </tr>
+                                        ) : (
+                                            productUsageSummary.map(item => (
+                                                <tr key={item.productId} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                                    <td className="px-6 py-4">
+                                                        <p className="font-bold text-slate-800 dark:text-slate-100">{item.product?.name || 'N/A'}</p>
+                                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">ID: {item.productId}</p>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center text-sm text-slate-600 dark:text-slate-400">
+                                                        {item.product?.unit || '-'}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-300 font-black text-sm">
+                                                            {item.quantity.toLocaleString()}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right font-bold text-slate-700 dark:text-slate-200">
+                                                        {formatCurrency(item.value)}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                    {productUsageSummary.length > 0 && (
+                                        <tfoot>
+                                            <tr className="bg-slate-50 dark:bg-slate-700/50 border-t-2 border-slate-200 dark:border-slate-600 font-black">
+                                                <td colSpan={3} className="px-6 py-4 text-right text-slate-800 dark:text-slate-100 uppercase tracking-wider">มูลค่ารวมทั้งสิ้น</td>
+                                                <td className="px-6 py-4 text-right text-sky-600 dark:text-sky-400 text-lg">
+                                                    {formatCurrency(summaryTotalValue)}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {/* Pagination Controls */}
+                    {reportType === 'list' && filteredRequisitions.length > REQUISITIONS_PER_PAGE && (
+                        <div className="mt-6 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                            <div className="text-sm text-slate-500 font-medium">
+                                หน้า {currentPage} จาก {Math.ceil(filteredRequisitions.length / REQUISITIONS_PER_PAGE)} (ทั้งหมด {filteredRequisitions.length} รายการ)
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-4 py-2 border rounded-lg bg-white dark:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-bold shadow-sm"
+                                >
+                                    ย้อนกลับ
+                                </button>
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredRequisitions.length / REQUISITIONS_PER_PAGE), prev + 1))}
+                                    disabled={currentPage === Math.ceil(filteredRequisitions.length / REQUISITIONS_PER_PAGE)}
+                                    className="px-4 py-2 border rounded-lg bg-white dark:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-bold shadow-sm"
+                                >
+                                    ถัดไป
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
-
-                {/* Pagination Controls */}
-                {filteredRequisitions.length > REQUISITIONS_PER_PAGE && (
-                    <div className="mt-6 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
-                        <div className="text-sm text-slate-500 font-medium">
-                            หน้า {currentPage} จาก {Math.ceil(filteredRequisitions.length / REQUISITIONS_PER_PAGE)} (ทั้งหมด {filteredRequisitions.length} รายการ)
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                                disabled={currentPage === 1}
-                                className="px-4 py-2 border rounded-lg bg-white dark:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-bold shadow-sm"
-                            >
-                                ย้อนกลับ
-                            </button>
-                            <button
-                                onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredRequisitions.length / REQUISITIONS_PER_PAGE), prev + 1))}
-                                disabled={currentPage === Math.ceil(filteredRequisitions.length / REQUISITIONS_PER_PAGE)}
-                                className="px-4 py-2 border rounded-lg bg-white dark:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-bold shadow-sm"
-                            >
-                                ถัดไป
-                            </button>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );

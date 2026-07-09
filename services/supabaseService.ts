@@ -918,9 +918,9 @@ export const supabaseService = {
 
         const { data, error } = await supabase
             .from('requisition_items')
-            .select('product_id, approved_quantity, requisitions!inner(department_id, status, approved_at)')
+            .select('product_id, approved_quantity, quantity, requisitions!inner(department_id, status, approved_at)')
             .eq('requisitions.department_id', deptId)
-            .eq('requisitions.status', 'Completed')
+            .in('requisitions.status', ['Completed', 'Ready', 'PartiallyApproved'])
             .gte('requisitions.approved_at', startDate)
             .lte('requisitions.approved_at', endDate);
 
@@ -928,7 +928,7 @@ export const supabaseService = {
 
         const usageMap: Record<string, number> = {};
         (data as any[] || []).forEach(item => {
-            const qty = item.approved_quantity || 0;
+            const qty = (item.approved_quantity !== null && item.approved_quantity !== undefined) ? item.approved_quantity : item.quantity;
             usageMap[item.product_id] = (usageMap[item.product_id] || 0) + qty;
         });
 

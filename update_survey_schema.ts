@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { supabase } from './supabaseClient.js';
 async function test() {
   const res = await supabase.rpc('execute_sql', { sql_statement: `
