@@ -33,6 +33,7 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<Record<string, { quantity: number; price: number }>>({});
   const [prevYearUsage, setPrevYearUsage] = useState<Record<string, number>>({});
+  const [prevYearSurvey, setPrevYearSurvey] = useState<Record<string, number>>({});
   const [lockedProducts, setLockedProducts] = useState<Record<string, string>>({});
   const [fySettings, setFySettings] = useState({ fy_survey_open: false, fy_survey_year: 2570, fy_previous_year: 2569 });
   const [isLoading, setIsLoading] = useState(true);
@@ -61,9 +62,10 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
       const settings = await supabaseService.getFySurveySettings();
       setFySettings(settings);
 
-      const [fetchedProducts, surveyData, usageData, lockedData] = await Promise.all([
+      const [fetchedProducts, surveyData, prevSurveyData, usageData, lockedData] = await Promise.all([
         supabaseService.getProductsForDepartment(department.id),
         supabaseService.getSurveyForDepartment(department.id, settings.fy_survey_year),
+        supabaseService.getSurveyForDepartment(department.id, settings.fy_previous_year),
         supabaseService.getDepartmentUsageForFiscalYear(department.id, settings.fy_previous_year),
         supabaseService.getLockedProductsWithReasons(department.id)
       ]);
@@ -72,24 +74,36 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
       setAssignedProductIds(new Set(fetchedProducts.map(p => p.id)));
       setPrevYearUsage(usageData);
       setLockedProducts(lockedData);
+
+      if (prevSurveyData?.quantities) {
+        const prevQuantities: Record<string, number> = {};
+        Object.entries(prevSurveyData.quantities).forEach(([pid, details]) => {
+          prevQuantities[pid] = (details as { quantity: number }).quantity || 0;
+        });
+        setPrevYearSurvey(prevQuantities);
+      }
       
       // If we have current survey data, use it. 
-      // If not, we might want to pre-populate with items that had usage last year.
       if (surveyData?.quantities) {
         setQuantities(surveyData.quantities);
       }
       
       // Auto-add items that had usage last year or were in the previous survey but aren't in fetchedProducts
       const usageProductIds = Object.keys(usageData);
-      const surveyProductIds = surveyData?.quantities ? Object.keys(surveyData.quantities) : [];
+      const prevSurveyProductIds = prevSurveyData?.quantities ? Object.keys(prevSurveyData.quantities) : [];
+      const currentSurveyProductIds = surveyData?.quantities ? Object.keys(surveyData.quantities) : [];
       const currentProductIds = new Set(fetchedProducts.map(p => p.id));
       
-      const missingIds = [...new Set([...usageProductIds, ...surveyProductIds])].filter(id => !currentProductIds.has(id));
+      const missingIds = [...new Set([...usageProductIds, ...prevSurveyProductIds, ...currentSurveyProductIds])].filter(id => !currentProductIds.has(id));
       
       if (missingIds.length > 0) {
           const allProds = await supabaseService.getProducts();
           const missingProds = allProds.filter(p => missingIds.includes(p.id));
-          setProducts(prev => [...prev, ...missingProds].sort((a,b) => a.name.localeCompare(b.name, 'th')));
+          setProducts(prev => {
+              const existingIds = new Set(prev.map(p => p.id));
+              const uniqueMissing = missingProds.filter(p => !existingIds.has(p.id));
+              return [...prev, ...uniqueMissing].sort((a,b) => a.name.localeCompare(b.name, 'th'));
+          });
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
@@ -278,9 +292,10 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
                         {products.map(product => {
                             const isTemporary = !assignedProductIds.has(product.id);
                             const totalSurveyed = totalSurveyedMap.get(product.id) || 0;
-                            const plannedQty = planMap.get(product.id) || 0; // Using plan from previous year as old survey baseline
-                            const isOverPlan = plannedQty !== undefined && totalSurveyed > plannedQty;
+                            const hospitalPlannedQty = planMap.get(product.id) || 0; 
+                            const isOverPlan = hospitalPlannedQty !== undefined && totalSurveyed > hospitalPlannedQty;
                             
+                            const prevSurveyQty = prevYearSurvey[product.id] || 0;
                             const usage = prevYearUsage[product.id] || 0;
                             const recommended = Math.ceil(usage * 1.1); // Default 10% buffer
                             const lockReason = lockedProducts[product.id];
@@ -310,7 +325,7 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
                                     </div>
                                 </td>
                                 <td className="px-4 py-4 whitespace-nowrap text-sm text-center text-slate-500 dark:text-slate-500">
-                                    {plannedQty.toLocaleString()}
+                                    {prevSurveyQty.toLocaleString()}
                                 </td>
                                 <td className="px-4 py-4 whitespace-nowrap text-sm text-center text-slate-600 dark:text-slate-400 font-medium">
                                     {usage.toLocaleString()}

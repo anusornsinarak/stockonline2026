@@ -246,17 +246,7 @@ export const supabaseService = {
         const { data, error } = await supabase.rpc('get_products_for_department', { dept_id: deptId });
         if (error) throw error;
         
-        // Filter out locked products
-        const { data: lockedAssignments } = await supabase
-            .from('product_assignments')
-            .select('product_id')
-            .eq('department_id', deptId)
-            .eq('is_locked', true);
-            
-        const lockedProductIds = new Set((lockedAssignments || []).map(a => a.product_id));
-        
         return (data as any[] || [])
-            .filter(p => !lockedProductIds.has(p.id))
             .map(p => ({
                 id: p.id, name: p.name, unit: p.unit, category: p.category,
                 pricePerUnit: p.price_per_unit, previousPricePerUnit: p.previous_price_per_unit,
@@ -847,8 +837,8 @@ export const supabaseService = {
         let q = data.quantities as any;
         const keys = Object.keys(q);
         if (keys.length > 0 && keys[0].length > 4) {
-             // Old format, assume current year
-             q = { [fiscalYear]: q };
+             // Old format, assume year 2569 as requested by user
+             q = { 2569: q };
         }
         if (!q[fiscalYear]) return null;
         return {
@@ -864,7 +854,7 @@ export const supabaseService = {
         let quantities = existing?.quantities || {};
         const keys = Object.keys(quantities);
         if (keys.length > 0 && keys[0].length > 4) {
-             quantities = { [fiscalYear]: quantities };
+             quantities = { 2569: quantities }; // Old format belongs to 2569
         }
         quantities[fiscalYear] = newQuantities;
         
@@ -888,7 +878,7 @@ export const supabaseService = {
             let q = s.quantities as any || {};
             const keys = Object.keys(q);
             if (keys.length > 0 && keys[0].length > 4) {
-                 q = { [fiscalYear]: q }; // Wrap old format
+                 q = { 2569: q }; // Old format belongs to 2569
             }
             return {
                 id: s.id,

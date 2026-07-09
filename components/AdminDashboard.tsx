@@ -156,19 +156,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
 
   const lastProcessedInitialTabRef = useRef<string | null>(null);
 
+  const [viewFiscalYear, setViewFiscalYear] = useState<number>(nextFiscalYearBE);
+
   const fetchBudget = useCallback(async () => {
     setIsLoadingBudget(true);
     try {
-        const b = await supabaseService.getBudgetForFiscalYear(nextFiscalYearBE);
+        const b = await supabaseService.getBudgetForFiscalYear(viewFiscalYear);
         setBudget(b);
     } catch (e) {
         console.error("Error fetching budget", e);
     } finally {
         setIsLoadingBudget(false);
     }
-  }, [nextFiscalYearBE]);
-
-  const [viewFiscalYear, setViewFiscalYear] = useState<number>(nextFiscalYearBE);
+  }, [viewFiscalYear]);
   
   const fetchData = useCallback(async (isBackground = false) => {
     if (!isBackground) {
