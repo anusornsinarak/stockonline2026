@@ -26,9 +26,11 @@ interface DepartmentViewProps {
     products: Product[];
     departments: Department[];
     onDataChange: () => void;
+    isReadOnly?: boolean;
+    fiscalYear: number;
 }
 
-export const DepartmentView: React.FC<DepartmentViewProps> = ({ results, products, departments, onDataChange }) => {
+export const DepartmentView: React.FC<DepartmentViewProps> = ({ results, products, departments, onDataChange, isReadOnly, fiscalYear }) => {
     const [editedQuantities, setEditedQuantities] = useState<Record<string, Record<string, { quantity: number; price: number }>>>({});
     const [savingDeptId, setSavingDeptId] = useState<string | null>(null);
     const [searchTerms, setSearchTerms] = useState<Record<string, string>>({});
@@ -103,7 +105,7 @@ export const DepartmentView: React.FC<DepartmentViewProps> = ({ results, product
         try {
             const quantitiesToSave = editedQuantities[deptId];
             if (quantitiesToSave) {
-                await supabaseService.submitSurvey(deptId, quantitiesToSave);
+                await supabaseService.submitSurvey(deptId, fiscalYear, quantitiesToSave);
                 alert('บันทึกข้อมูลสำเร็จ!');
                 onDataChange();
             }
@@ -213,25 +215,27 @@ export const DepartmentView: React.FC<DepartmentViewProps> = ({ results, product
                             </button>
                             {isExpanded && (
                                 <div className="p-4 border-t border-slate-200 dark:border-slate-600 space-y-4 animate-fade-in" style={{animationDuration: '0.3s'}}>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            placeholder="ค้นหาเพื่อเพิ่มรายการ..."
-                                            value={searchTerms[dept.id] || ''}
-                                            onChange={e => setSearchTerms(prev => ({...prev, [dept.id]: e.target.value}))}
-                                            className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700"
-                                        />
-                                        {getSearchableProducts(dept.id).length > 0 && (
-                                            <div className="absolute z-10 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-md mt-1 shadow-lg max-h-48 overflow-auto">
-                                                {getSearchableProducts(dept.id).map(p => (
-                                                    <button key={p.id} onClick={() => handleAddProduct(dept.id, p)} className="w-full flex items-center justify-between text-left p-2 hover:bg-sky-50 dark:hover:bg-sky-900/50">
-                                                        {p.name}
-                                                        <PlusIcon className="w-5 h-5 text-sky-500"/>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                                    {!isReadOnly && (
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                placeholder="ค้นหาเพื่อเพิ่มรายการ..."
+                                                value={searchTerms[dept.id] || ''}
+                                                onChange={e => setSearchTerms(prev => ({...prev, [dept.id]: e.target.value}))}
+                                                className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700"
+                                            />
+                                            {getSearchableProducts(dept.id).length > 0 && (
+                                                <div className="absolute z-10 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-md mt-1 shadow-lg max-h-48 overflow-auto">
+                                                    {getSearchableProducts(dept.id).map(p => (
+                                                        <button key={p.id} onClick={() => handleAddProduct(dept.id, p)} className="w-full flex items-center justify-between text-left p-2 hover:bg-sky-50 dark:hover:bg-sky-900/50">
+                                                            {p.name}
+                                                            <PlusIcon className="w-5 h-5 text-sky-500"/>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                     <TableTemplate headers={['รายการ', 'หน่วย', { name: 'จำนวน', className: 'text-right' }, { name: '', className: 'w-16 text-center' }]}>
                                         {departmentSurveyItems.length > 0 ? departmentSurveyItems.sort((a,b) => (productMap.get(a[0])?.name || '').localeCompare(productMap.get(b[0])?.name || '', 'th')).map(([productId, surveyItem]) => {
                                             const product = productMap.get(productId);
@@ -246,13 +250,16 @@ export const DepartmentView: React.FC<DepartmentViewProps> = ({ results, product
                                                             min="0"
                                                             value={(surveyItem as any)?.quantity || ''}
                                                             onChange={(e) => handleQuantityChange(dept.id, productId, e.target.value)}
-                                                            className="w-24 text-right p-1 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700"
+                                                            className="w-24 text-right p-1 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 disabled:opacity-75 disabled:bg-slate-50"
+                                                            disabled={isReadOnly}
                                                         />
                                                     </td>
                                                     <td className="px-4 py-2 text-center">
-                                                        <button onClick={() => handleRemoveProduct(dept.id, productId)} className="text-slate-400 hover:text-red-500">
-                                                            <TrashIcon className="w-5 h-5"/>
-                                                        </button>
+                                                        {!isReadOnly && (
+                                                            <button onClick={() => handleRemoveProduct(dept.id, productId)} className="text-slate-400 hover:text-red-500">
+                                                                <TrashIcon className="w-5 h-5"/>
+                                                            </button>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             );
@@ -260,15 +267,17 @@ export const DepartmentView: React.FC<DepartmentViewProps> = ({ results, product
                                             <tr><td colSpan={4} className="text-center p-6 text-slate-500">ไม่มีรายการในแบบสำรวจนี้</td></tr>
                                         )}
                                     </TableTemplate>
-                                    <div className="flex justify-end">
-                                        <button
-                                            onClick={() => handleSaveChanges(dept.id)}
-                                            disabled={savingDeptId === dept.id}
-                                            className="bg-sky-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-sky-700 disabled:bg-slate-400"
-                                        >
-                                            {savingDeptId === dept.id ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
-                                        </button>
-                                    </div>
+                                    {!isReadOnly && (
+                                        <div className="flex justify-end">
+                                            <button
+                                                onClick={() => handleSaveChanges(dept.id)}
+                                                disabled={savingDeptId === dept.id}
+                                                className="bg-sky-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-sky-700 disabled:bg-slate-400"
+                                            >
+                                                {savingDeptId === dept.id ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง'}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

@@ -24,9 +24,10 @@ interface SummaryViewProps {
     budget: number | null;
     isLoadingBudget: boolean;
     onBudgetChange: () => void;
+    isReadOnly?: boolean;
 }
 
-export const SummaryView: React.FC<SummaryViewProps> = ({ data, requisitions, fiscalYear, budget, isLoadingBudget, onBudgetChange }) => {
+export const SummaryView: React.FC<SummaryViewProps> = ({ data, requisitions, fiscalYear, budget, isLoadingBudget, onBudgetChange, isReadOnly }) => {
     const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
     const [budgetInput, setBudgetInput] = useState('');
     const [isSavingBudget, setIsSavingBudget] = useState(false);
@@ -151,12 +152,14 @@ export const SummaryView: React.FC<SummaryViewProps> = ({ data, requisitions, fi
         <div className="mb-8 p-6 bg-gradient-to-r from-sky-500 to-indigo-500 text-white border border-slate-200 rounded-2xl shadow-lg print-section">
             <div className="flex justify-between items-start">
                 <h3 className="text-xl font-bold mb-4">สรุปงบประมาณปี {fiscalYear}</h3>
-                <button 
-                    onClick={() => setIsBudgetModalOpen(true)}
-                    className="bg-white/20 hover:bg-white/30 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors no-print"
-                >
-                    ตั้ง/แก้ไขงบประมาณ
-                </button>
+                {!isReadOnly && (
+                    <button 
+                        onClick={() => setIsBudgetModalOpen(true)}
+                        className="bg-white/20 hover:bg-white/30 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors no-print"
+                    >
+                        ตั้ง/แก้ไขงบประมาณ
+                    </button>
+                )}
             </div>
             {isLoadingBudget ? <p>กำลังโหลดข้อมูลงบประมาณ...</p> : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

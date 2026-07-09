@@ -307,9 +307,10 @@ interface RequisitionDashboardProps {
     documentSettings: DocumentSettings | null;
     personnel: Personnel[];
     onNavigateToSettings?: () => void;
+    nextFiscalYearBE: number;
 }
 
-const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department, isRequisitionOpen, documentSettings, personnel, onNavigateToSettings }) => {
+const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department, isRequisitionOpen, documentSettings, personnel, onNavigateToSettings, nextFiscalYearBE }) => {
     const [viewMode, setViewMode] = useState<ViewMode>('list');
     const [requisitions, setRequisitions] = useState<Requisition[]>([]);
     const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -460,7 +461,7 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
             const [inventory, expiringStock, surveyData, deptProducts, deptInventory, activeAnnouncement] = await Promise.all([
                 supabaseService.getInventory(),
                 supabaseService.getExpiringStock(),
-                supabaseService.getSurveyForDepartment(department.id),
+                supabaseService.getSurveyForDepartment(department.id, nextFiscalYearBE),
                 supabaseService.getProductsForDepartment(department.id),
                 supabaseService.getDepartmentInventory(department.id),
                 supabaseService.getAnnouncementSettings()

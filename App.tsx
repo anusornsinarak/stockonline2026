@@ -251,7 +251,7 @@ const App: React.FC = () => {
              />;
     }
     if (user?.role === 'Warehouse' && activeView.type === 'warehouse') {
-        return <WarehousePortal user={user} initialTab={activeView.payload} stopAlert={() => setAlertMessage(null)} />;
+        return <WarehousePortal user={user} nextFiscalYearBE={fySettings.fy_survey_year} initialTab={activeView.payload} stopAlert={() => setAlertMessage(null)} />;
     }
     return <MainDashboard user={user!} onNavigate={setActiveView} />;
   };

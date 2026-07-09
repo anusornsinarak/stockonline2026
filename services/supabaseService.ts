@@ -841,19 +841,33 @@ export const supabaseService = {
     },
 
     // Surveys
-    async getSurveyForDepartment(deptId: string): Promise<SurveyEntry | null> {
+    async getSurveyForDepartment(deptId: string, fiscalYear: number): Promise<SurveyEntry | null> {
         const { data } = await supabase.from('survey_submissions').select('*').eq('department_id', deptId).maybeSingle();
-        if (!data) return null;
+        if (!data || !data.quantities) return null;
+        let q = data.quantities as any;
+        const keys = Object.keys(q);
+        if (keys.length > 0 && keys[0].length > 4) {
+             // Old format, assume current year
+             q = { [fiscalYear]: q };
+        }
+        if (!q[fiscalYear]) return null;
         return {
             id: data.id,
             departmentId: data.department_id,
             submittedAt: data.submitted_at,
-            quantities: data.quantities as any
+            quantities: q[fiscalYear]
         };
     },
 
-    async submitSurvey(deptId: string, quantities: any) {
-        const { data: existing } = await supabase.from('survey_submissions').select('id').eq('department_id', deptId).maybeSingle();
+    async submitSurvey(deptId: string, fiscalYear: number, newQuantities: any) {
+        const { data: existing } = await supabase.from('survey_submissions').select('id, quantities').eq('department_id', deptId).maybeSingle();
+        let quantities = existing?.quantities || {};
+        const keys = Object.keys(quantities);
+        if (keys.length > 0 && keys[0].length > 4) {
+             quantities = { [fiscalYear]: quantities };
+        }
+        quantities[fiscalYear] = newQuantities;
+        
         if (existing) {
             const { error } = await supabase.from('survey_submissions').update({ quantities, submitted_at: new Date().toISOString() }).eq('id', existing.id);
             if (error) throw error;
@@ -868,14 +882,21 @@ export const supabaseService = {
         });
     },
 
-    async getSurveySubmissions(): Promise<SurveyEntry[]> {
+    async getSurveySubmissions(fiscalYear: number): Promise<SurveyEntry[]> {
         const { data } = await supabase.from('survey_submissions').select('*');
-        return (data || []).map(s => ({
-            id: s.id,
-            departmentId: s.department_id,
-            submittedAt: s.submitted_at,
-            quantities: s.quantities as any
-        }));
+        return (data || []).map(s => {
+            let q = s.quantities as any || {};
+            const keys = Object.keys(q);
+            if (keys.length > 0 && keys[0].length > 4) {
+                 q = { [fiscalYear]: q }; // Wrap old format
+            }
+            return {
+                id: s.id,
+                departmentId: s.department_id,
+                submittedAt: s.submitted_at,
+                quantities: q[fiscalYear] || {}
+            };
+        });
     },
 
     // FY 2027 Survey Helpers
@@ -1040,12 +1061,12 @@ export const supabaseService = {
         return data;
     },
 
-    async getAdminDashboardData() {
+    async getAdminDashboardData(fiscalYear: number) {
         const [prods, depts, reqs, surveys, logs, users] = await Promise.all([
             this.getProducts(),
             this.getDepartments(),
             this.getRequisitionsForAdmin(),
-            this.getSurveySubmissions(),
+            this.getSurveySubmissions(fiscalYear),
             this.getSystemLogs(),
             this.getUsers()
         ]);

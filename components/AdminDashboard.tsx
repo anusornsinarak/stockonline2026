@@ -168,16 +168,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     }
   }, [nextFiscalYearBE]);
 
+  const [viewFiscalYear, setViewFiscalYear] = useState<number>(nextFiscalYearBE);
+  
   const fetchData = useCallback(async (isBackground = false) => {
     if (!isBackground) {
         setIsLoading(true);
     }
     
     try {
-      const dashboardData = await supabaseService.getAdminDashboardData();
+      const dashboardData = await supabaseService.getAdminDashboardData(viewFiscalYear);
       const extraData = await Promise.all([
           supabaseService.getInventory(),
-          supabaseService.getPurchasePlan(nextFiscalYearBE),
+          supabaseService.getPurchasePlan(viewFiscalYear),
           supabaseService.getExpiringStock(),
           supabaseService.getLoansForAdmin(),
           supabaseService.getProductUsageHistory(),
@@ -210,7 +212,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
     } finally {
         setIsLoading(false);
     }
-  }, [nextFiscalYearBE, fetchBudget]);
+  }, [viewFiscalYear, fetchBudget]);
 
   useEffect(() => { 
       fetchData(); 
@@ -348,10 +350,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
   };
 
   const renderContent = () => {
+      const isReadOnly = viewFiscalYear !== nextFiscalYearBE;
+      
       switch (activeTab) {
-          case 'summary': return <SummaryView data={aggregatedSurveyData} requisitions={data.requisitions} fiscalYear={nextFiscalYearBE} budget={budget} isLoadingBudget={isLoadingBudget} onBudgetChange={() => fetchData(true)} />;
-          case 'departments': return <DepartmentView results={data.surveySubmissions} products={data.products} departments={data.departments} onDataChange={() => fetchData(true)} />;
-          case 'purchasePlan': return <PurchasePlanView products={data.products} fiscalYear={nextFiscalYearBE} currentFiscalYearBE={currentFiscalYearBE} budget={budget} aggregatedSurveyData={aggregatedSurveyData} initialPlan={data.purchasePlan} onPlanSave={() => fetchData(true)} inventory={data.inventory} documentSettings={documentSettings} productUsageHistory={data.productUsageHistory} />;
+          case 'summary': return <SummaryView data={aggregatedSurveyData} requisitions={data.requisitions} fiscalYear={viewFiscalYear} budget={budget} isLoadingBudget={isLoadingBudget} onBudgetChange={() => fetchData(true)} />;
+          case 'departments': return <DepartmentView results={data.surveySubmissions} products={data.products} departments={data.departments} onDataChange={() => fetchData(true)} isReadOnly={isReadOnly} fiscalYear={viewFiscalYear} />;
+          case 'purchasePlan': return <PurchasePlanView products={data.products} fiscalYear={viewFiscalYear} currentFiscalYearBE={currentFiscalYearBE} budget={budget} aggregatedSurveyData={aggregatedSurveyData} initialPlan={data.purchasePlan} onPlanSave={() => fetchData(true)} inventory={data.inventory} documentSettings={documentSettings} productUsageHistory={data.productUsageHistory} isReadOnly={isReadOnly} />;
           case 'reports': return <ReportsView requisitions={data.requisitions} products={data.products} departments={data.departments} inventory={data.inventory} goodsReceivedNotes={data.goodsReceivedNotes} purchasePlan={data.purchasePlan} surveyResults={data.surveySubmissions} productUsageHistory={data.productUsageHistory} documentSettings={documentSettings} />;
           case 'requisitions': return <ManageRequisitionsView user={user} requisitions={data.requisitions} departments={data.departments} allProducts={data.products} inventory={data.inventory} backorders={derivedBackorders} onDataChange={() => fetchData(true)} documentSettings={documentSettings} onViewPickingList={handleViewPicking} onOpenReturnModal={setReturnModalReq} onOpenCreateForDeptModal={handleOpenCreateForDept} />;
           case 'loanSystem': return <LoanSystemView departments={data.departments} allProducts={data.products} currentUser={user} />;
@@ -444,6 +448,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = (props) => {
             ))}
         </nav>
         <main className="flex-grow min-w-0 bg-white dark:bg-slate-800 p-6 rounded-xl shadow-lg min-h-[80vh]">
+            <div className="flex justify-between items-center mb-6 border-b pb-4 dark:border-slate-700">
+                <h1 className="text-2xl font-bold text-slate-800 dark:text-white">
+                    {Object.values(navGroups).flatMap(g => Object.entries(g.items)).find(([k]) => k === activeTab)?.[1] || 'Dashboard'}
+                </h1>
+                
+                <div className="flex items-center gap-3">
+                    <label htmlFor="fiscal-year-select" className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                        ปีงบประมาณ:
+                    </label>
+                    <select
+                        id="fiscal-year-select"
+                        value={viewFiscalYear}
+                        onChange={(e) => setViewFiscalYear(parseInt(e.target.value))}
+                        className="bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-sky-500 focus:border-sky-500 block w-full p-2"
+                    >
+                        <option value={nextFiscalYearBE}>{nextFiscalYearBE} (ปีปัจจุบัน)</option>
+                        <option value={currentFiscalYearBE}>{currentFiscalYearBE}</option>
+                        <option value={currentFiscalYearBE - 1}>{currentFiscalYearBE - 1}</option>
+                        <option value={currentFiscalYearBE - 2}>{currentFiscalYearBE - 2}</option>
+                    </select>
+                </div>
+            </div>
+
             {renderContent()}
         </main>
         

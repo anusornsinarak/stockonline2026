@@ -63,7 +63,7 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
 
       const [fetchedProducts, surveyData, usageData, lockedData] = await Promise.all([
         supabaseService.getProductsForDepartment(department.id),
-        supabaseService.getSurveyForDepartment(department.id),
+        supabaseService.getSurveyForDepartment(department.id, settings.fy_survey_year),
         supabaseService.getDepartmentUsageForFiscalYear(department.id, settings.fy_previous_year),
         supabaseService.getLockedProductsWithReasons(department.id)
       ]);
@@ -77,17 +77,19 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
       // If not, we might want to pre-populate with items that had usage last year.
       if (surveyData?.quantities) {
         setQuantities(surveyData.quantities);
-      } else {
-        // Auto-add items that had usage last year but aren't in fetchedProducts
-        const usageProductIds = Object.keys(usageData);
-        const currentProductIds = new Set(fetchedProducts.map(p => p.id));
-        const missingIds = usageProductIds.filter(id => !currentProductIds.has(id));
-        
-        if (missingIds.length > 0) {
-            const allProds = await supabaseService.getProducts();
-            const missingProds = allProds.filter(p => missingIds.includes(p.id));
-            setProducts(prev => [...prev, ...missingProds].sort((a,b) => a.name.localeCompare(b.name, 'th')));
-        }
+      }
+      
+      // Auto-add items that had usage last year or were in the previous survey but aren't in fetchedProducts
+      const usageProductIds = Object.keys(usageData);
+      const surveyProductIds = surveyData?.quantities ? Object.keys(surveyData.quantities) : [];
+      const currentProductIds = new Set(fetchedProducts.map(p => p.id));
+      
+      const missingIds = [...new Set([...usageProductIds, ...surveyProductIds])].filter(id => !currentProductIds.has(id));
+      
+      if (missingIds.length > 0) {
+          const allProds = await supabaseService.getProducts();
+          const missingProds = allProds.filter(p => missingIds.includes(p.id));
+          setProducts(prev => [...prev, ...missingProds].sort((a,b) => a.name.localeCompare(b.name, 'th')));
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
@@ -171,7 +173,7 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
     });
 
     try {
-      await supabaseService.submitSurvey(department.id, quantitiesForSubmit);
+      await supabaseService.submitSurvey(department.id, fySettings.fy_survey_year, quantitiesForSubmit);
       setSubmissionStatus('success');
       setTimeout(() => setSubmissionStatus('idle'), 3000);
     } catch (error) {

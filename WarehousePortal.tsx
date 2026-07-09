@@ -26,11 +26,12 @@ type MergedWarehouseTab = 'requisitions' | 'receipts' | 'stockCard' | 'reports' 
 
 interface WarehousePortalProps {
     user: User;
+    nextFiscalYearBE: number;
     initialTab?: MergedWarehouseTab | { tab: MergedWarehouseTab, subTab: string, action?: string } | 'create_for_dept';
     stopAlert: () => void;
 }
 
-const WarehousePortal: React.FC<WarehousePortalProps> = ({ user, initialTab, stopAlert }) => {
+const WarehousePortal: React.FC<WarehousePortalProps> = ({ user, nextFiscalYearBE, initialTab, stopAlert }) => {
     const [activeTab, setActiveTab] = useState<MergedWarehouseTab>('requisitions');
     const [initialSubTab, setInitialSubTab] = useState<string | null>(null);
     const [requisitions, setRequisitions] = useState<Requisition[]>([]);
@@ -97,8 +98,8 @@ const WarehousePortal: React.FC<WarehousePortalProps> = ({ user, initialTab, sto
                 supabaseService.getProducts(),
                 supabaseService.getInventory(),
                 supabaseService.getPurchaseOrdersForAdmin(),
-                supabaseService.getPurchasePlan(new Date().getFullYear() + 544),
-                supabaseService.getSurveySubmissions(),
+                supabaseService.getPurchasePlan(nextFiscalYearBE),
+                supabaseService.getSurveySubmissions(nextFiscalYearBE),
                 supabaseService.getProductUsageHistory(),
                 supabaseService.getSystemSettings(),
                 supabaseService.getLoansForAdmin(),

@@ -25,9 +25,10 @@ interface PurchasePlanViewProps {
     inventory: InventoryItem[];
     documentSettings: DocumentSettings | null;
     productUsageHistory: ProductUsageHistory[];
+    isReadOnly?: boolean;
 }
 
-export const PurchasePlanView: React.FC<PurchasePlanViewProps> = ({ products = [], fiscalYear, currentFiscalYearBE, budget, aggregatedSurveyData, initialPlan, onPlanSave, inventory, documentSettings, productUsageHistory }) => {
+export const PurchasePlanView: React.FC<PurchasePlanViewProps> = ({ products = [], fiscalYear, currentFiscalYearBE, budget, aggregatedSurveyData, initialPlan, onPlanSave, inventory, documentSettings, productUsageHistory, isReadOnly }) => {
     const [selectedFiscalYear, setSelectedFiscalYear] = useState<number>(fiscalYear);
     const [currentPlan, setCurrentPlan] = useState<PurchasePlanItem[]>(initialPlan);
     const [isLoadingPlan, setIsLoadingPlan] = useState(false);
@@ -136,8 +137,8 @@ export const PurchasePlanView: React.FC<PurchasePlanViewProps> = ({ products = [
                     type="number"
                     value={plannedManualQuantities[item.product.id] || '0'}
                     onChange={e => handleManualQuantityChange(item.product.id, e.target.value)}
-                    disabled={isPlanLocked && isManuallyLocked}
-                    className="w-full text-right p-1 border rounded bg-white dark:bg-slate-700"
+                    disabled={(isPlanLocked && isManuallyLocked) || isReadOnly}
+                    className="w-full text-right p-1 border rounded bg-white dark:bg-slate-700 disabled:bg-slate-100 disabled:opacity-75"
                 />
             </td>
             <td className="px-6 py-2 text-sm text-right font-bold text-sky-700">{item.plannedValue.toLocaleString()}</td>
@@ -149,7 +150,11 @@ export const PurchasePlanView: React.FC<PurchasePlanViewProps> = ({ products = [
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold">แผนการจัดซื้อปีงบประมาณ {selectedFiscalYear}</h3>
                 <div className="flex gap-2">
-                    <button onClick={handleSave} disabled={isSaving} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-lg">บันทึกแผน</button>
+                    {!isReadOnly && (
+                        <button onClick={handleSave} disabled={isSaving} className="bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-700 disabled:bg-slate-400">
+                            บันทึกแผน
+                        </button>
+                    )}
                 </div>
             </div>
             <TableTemplate headers={['รายการ', 'ราคา/หน่วย', 'ยอดสำรวจ', 'คงคลัง', 'จำนวนตามแผน', 'มูลค่าจัดซื้อ']}>

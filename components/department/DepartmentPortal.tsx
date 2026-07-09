@@ -61,7 +61,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
         try {
             const [plan, results, pers] = await Promise.all([
                 supabaseService.getPurchasePlan(nextFiscalYearBE),
-                supabaseService.getSurveySubmissions(),
+                supabaseService.getSurveySubmissions(nextFiscalYearBE),
                 supabaseService.getPersonnel(),
             ]);
             setPurchasePlan(plan);
@@ -113,6 +113,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                         documentSettings={documentSettings} 
                         personnel={personnel} 
                         onNavigateToSettings={() => handleTabClick('settings')}
+                        nextFiscalYearBE={nextFiscalYearBE}
                     />
                 );
             case 'survey':
