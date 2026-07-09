@@ -29,10 +29,25 @@ const ManageAnnouncementsView: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [fySettings, setFySettings] = useState({ fy_survey_open: false, fy_survey_year: 2570, fy_previous_year: 2569 });
 
     useEffect(() => {
         fetchData();
+        fetchFySettings();
     }, []);
+
+    const fetchFySettings = async () => {
+        const settings = await supabaseService.getFySurveySettings();
+        setFySettings(settings);
+    };
+
+    const handleFyToggle = async () => {
+        const newSettings = { ...fySettings, fy_survey_open: !fySettings.fy_survey_open };
+        setFySettings(newSettings);
+        await supabaseService.saveFySurveySettings(newSettings);
+        setStatusMessage({ type: 'success', text: `บันทึกการตั้งค่าแผนสำรวจปี ${fySettings.fy_survey_year} เรียบร้อย` });
+        setTimeout(() => setStatusMessage(null), 3000);
+    };
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -158,6 +173,18 @@ const ManageAnnouncementsView: React.FC = () => {
                             className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 ml-4 ${activeConfig.isOffCycleWeek ? 'bg-amber-600' : 'bg-slate-300 dark:bg-slate-600'}`}
                         >
                             <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${activeConfig.isOffCycleWeek ? 'translate-x-5' : 'translate-x-0'}`}/>
+                        </button>
+                    </div>
+                    <div className="flex justify-between items-center bg-sky-50 dark:bg-sky-900/20 p-3 rounded-xl border border-sky-200 dark:border-sky-700/50 shadow-sm min-w-[280px]">
+                        <div className="flex flex-col">
+                            <span className="text-sm font-bold text-sky-800 dark:text-sky-300">เปิดระบบสำรวจปีงบ {fySettings.fy_survey_year}</span>
+                            <span className="text-xs text-sky-600 dark:text-sky-400 font-medium">ให้หน่วยงานเริ่มกรอกแผนการใช้</span>
+                        </div>
+                        <button
+                            onClick={handleFyToggle}
+                            className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 ml-4 ${fySettings.fy_survey_open ? 'bg-sky-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                        >
+                            <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${fySettings.fy_survey_open ? 'translate-x-5' : 'translate-x-0'}`}/>
                         </button>
                     </div>
                 </div>

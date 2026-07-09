@@ -32,6 +32,10 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
   const [products, setProducts] = useState<Product[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [quantities, setQuantities] = useState<Record<string, { quantity: number; price: number }>>({});
+  const [prevYearUsage, setPrevYearUsage] = useState<Record<string, number>>({});
+  const [prevYearSurvey, setPrevYearSurvey] = useState<Record<string, number>>({});
+  const [lockedProducts, setLockedProducts] = useState<Record<string, string>>({});
+  const [fySettings, setFySettings] = useState({ fy_survey_open: false, fy_survey_year: 2570, fy_previous_year: 2569 });
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -55,14 +59,36 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
     if (!department) return;
     setIsLoading(true);
     try {
-      const [fetchedProducts, surveyData] = await Promise.all([
+      const settings = await supabaseService.getFySurveySettings();
+      setFySettings(settings);
+
+      const [fetchedProducts, surveyData, usageData, lockedData] = await Promise.all([
         supabaseService.getProductsForDepartment(department.id),
-        supabaseService.getSurveyForDepartment(department.id)
+        supabaseService.getSurveyForDepartment(department.id),
+        supabaseService.getDepartmentUsageForFiscalYear(department.id, settings.fy_previous_year),
+        supabaseService.getLockedProductsWithReasons(department.id)
       ]);
+      
       setProducts(fetchedProducts);
       setAssignedProductIds(new Set(fetchedProducts.map(p => p.id)));
+      setPrevYearUsage(usageData);
+      setLockedProducts(lockedData);
+      
+      // If we have current survey data, use it. 
+      // If not, we might want to pre-populate with items that had usage last year.
       if (surveyData?.quantities) {
         setQuantities(surveyData.quantities);
+      } else {
+        // Auto-add items that had usage last year but aren't in fetchedProducts
+        const usageProductIds = Object.keys(usageData);
+        const currentProductIds = new Set(fetchedProducts.map(p => p.id));
+        const missingIds = usageProductIds.filter(id => !currentProductIds.has(id));
+        
+        if (missingIds.length > 0) {
+            const allProds = await supabaseService.getProducts();
+            const missingProds = allProds.filter(p => missingIds.includes(p.id));
+            setProducts(prev => [...prev, ...missingProds].sort((a,b) => a.name.localeCompare(b.name, 'th')));
+        }
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
@@ -240,7 +266,9 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
                     <thead className="bg-slate-50 dark:bg-slate-700/50">
                         <tr>
                             <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">รายการเวชภัณฑ์ / หน่วย</th>
-                            <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider w-48">จำนวนที่ต้องการใช้ทั้งปี</th>
+                            <th scope="col" className="px-4 py-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">ใช้จริงปี {fySettings.fy_previous_year}</th>
+                            <th scope="col" className="px-4 py-4 text-center text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">แนะนำ</th>
+                            <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider w-40">สำรวจปี {fySettings.fy_survey_year}</th>
                             <th scope="col" className="relative px-6 py-3 w-16 no-print"><span className="sr-only">การดำเนินการ</span></th>
                         </tr>
                     </thead>
@@ -250,14 +278,27 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
                             const totalSurveyed = totalSurveyedMap.get(product.id) || 0;
                             const plannedQty = planMap.get(product.id);
                             const isOverPlan = plannedQty !== undefined && totalSurveyed > plannedQty;
+                            
+                            const usage = prevYearUsage[product.id] || 0;
+                            const recommended = Math.ceil(usage * 1.1); // Default 10% buffer
+                            const lockReason = lockedProducts[product.id];
+                            const isLocked = !!lockReason;
 
                             return (
-                            <tr key={product.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-700/50">
+                            <tr key={product.id} className={`hover:bg-slate-50/70 dark:hover:bg-slate-700/50 ${isLocked ? 'opacity-75 bg-slate-50/30' : ''}`}>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                                     <div className="flex items-start gap-2">
                                         <div>
-                                            <div className="font-medium text-slate-900 dark:text-slate-200">{product.name}</div>
+                                            <div className="font-medium text-slate-900 dark:text-slate-200 flex items-center gap-2">
+                                                {product.name}
+                                                {isLocked && (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-800">
+                                                        LOCKED
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="text-xs text-slate-500 dark:text-slate-400">หน่วย: {product.unit}</div>
+                                            {isLocked && <div className="text-[10px] text-red-500 font-medium mt-0.5 italic">เหตุผล: {lockReason}</div>}
                                         </div>
                                         {isOverPlan && (
                                             <div title="ยอดสำรวจรวมทุกหน่วยงานเกินแผนจัดซื้อ" className="pt-0.5">
@@ -266,15 +307,29 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
                                         )}
                                     </div>
                                 </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-center text-slate-600 dark:text-slate-400 font-medium">
+                                    {usage.toLocaleString()}
+                                </td>
+                                <td className="px-4 py-4 whitespace-nowrap text-sm text-center">
+                                    <button 
+                                        type="button"
+                                        disabled={!isSurveyOpen || isLocked}
+                                        onClick={() => handleQuantityChange(product.id, recommended.toString())}
+                                        className="px-2 py-1 bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-300 rounded text-xs font-bold hover:bg-sky-100 transition-colors border border-sky-100 dark:border-sky-800"
+                                    >
+                                        {recommended.toLocaleString()}
+                                    </button>
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                                     <input
                                         type="number"
                                         min="0"
-                                        className="w-32 px-3 py-2 text-right bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500 transition disabled:bg-slate-100 dark:disabled:bg-slate-700/50 disabled:cursor-not-allowed"
+                                        className={`w-32 px-3 py-2 text-right bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-600 rounded-lg shadow-sm focus:ring-sky-500 focus:border-sky-500 transition disabled:bg-slate-100 dark:disabled:bg-slate-700/50 disabled:cursor-not-allowed ${isLocked ? 'border-red-300' : ''}`}
                                         value={quantities[product.id]?.quantity || ''}
                                         onChange={(e) => handleQuantityChange(product.id, e.target.value)}
                                         aria-label={`จำนวนที่ต้องการสำหรับ ${product.name}`}
-                                        disabled={!isSurveyOpen}
+                                        disabled={!isSurveyOpen || isLocked}
+                                        placeholder={isLocked ? "ระงับ" : "0"}
                                     />
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium no-print">

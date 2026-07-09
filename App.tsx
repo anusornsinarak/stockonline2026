@@ -50,10 +50,22 @@ const App: React.FC = () => {
   const [department, setDepartment] = useState<Department | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [isSurveyManuallyOpen] = useState(false);
-  const [isSurveyAutoOpen] = useState(false);
+  const [fySettings, setFySettings] = useState({ fy_survey_open: false, fy_survey_year: 2570, fy_previous_year: 2569 });
   const [isRequisitionOpen] = useState(true);
   const [documentSettings, setDocumentSettings] = useState<DocumentSettings | null>(null);
+
+  const fetchFySettings = useCallback(async () => {
+    try {
+        const settings = await supabaseService.getFySurveySettings();
+        setFySettings(settings);
+    } catch (e) {
+        console.error("Failed to fetch FY settings", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFySettings();
+  }, [fetchFySettings]);
   const [activeView, setActiveView] = useState<AppView>({ type: 'dashboard' });
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -207,17 +219,20 @@ const App: React.FC = () => {
     if (user?.role === 'Admin' && activeView.type === 'admin') {
       return <AdminDashboard 
                 user={user} 
-                isSurveyManuallyOpen={isSurveyManuallyOpen}
-                isSurveyAutoOpen={isSurveyAutoOpen}
+                isSurveyManuallyOpen={fySettings.fy_survey_open}
+                isSurveyAutoOpen={false}
                 onToggleSurvey={() => {}}
                 isRequisitionOpen={isRequisitionOpen}
                 onToggleRequisition={() => {}}
-                onDataChange={() => fetchNotifications(true)}
+                onDataChange={() => {
+                    fetchNotifications(true);
+                    fetchFySettings();
+                }}
                 onSettingsChange={fetchDocumentSettings}
                 initialTab={activeView.payload}
                 documentSettings={documentSettings}
                 currentFiscalYearBE={currentFiscalYearBE}
-                nextFiscalYearBE={planningFiscalYearBE}
+                nextFiscalYearBE={fySettings.fy_survey_year}
                 stopAlert={() => setAlertMessage(null)}
              />;
     }
@@ -225,12 +240,12 @@ const App: React.FC = () => {
       return <DepartmentPortal 
                 user={user}
                 department={department}
-                isSurveyOpen={isSurveyManuallyOpen || isSurveyAutoOpen}
-                surveyTitle={`แบบสำรวจความต้องการเวชภัณฑ์มิใช่ยา ประจำปีงบประมาณ ${planningFiscalYearBE}`}
+                isSurveyOpen={fySettings.fy_survey_open}
+                surveyTitle={`แบบสำรวจความต้องการเวชภัณฑ์มิใช่ยา ประจำปีงบประมาณ ${fySettings.fy_survey_year}`}
                 isRequisitionOpen={isRequisitionOpen}
                 initialTab={activeView.payload}
                 documentSettings={documentSettings}
-                nextFiscalYearBE={planningFiscalYearBE}
+                nextFiscalYearBE={fySettings.fy_survey_year}
                 stopAlert={() => setAlertMessage(null)}
                 onDataChange={() => fetchNotifications(true)}
              />;

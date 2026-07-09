@@ -878,6 +878,81 @@ export const supabaseService = {
         }));
     },
 
+    // FY 2027 Survey Helpers
+    async getFySurveySettings() {
+        const { data } = await supabase.from('system_settings').select('*').in('key', ['fy_survey_open', 'fy_survey_year', 'fy_previous_year']);
+        const settings: any = { fy_survey_open: false, fy_survey_year: 2570, fy_previous_year: 2569 };
+        (data || []).forEach((s: any) => {
+            settings[s.key] = s.value;
+        });
+        return settings;
+    },
+
+    async saveFySurveySettings(settings: { fy_survey_open: boolean; fy_survey_year: number; fy_previous_year: number }) {
+        const updates = [
+            supabase.from('system_settings').upsert({ key: 'fy_survey_open', value: settings.fy_survey_open }),
+            supabase.from('system_settings').upsert({ key: 'fy_survey_year', value: settings.fy_survey_year }),
+            supabase.from('system_settings').upsert({ key: 'fy_previous_year', value: settings.fy_previous_year })
+        ];
+        await Promise.all(updates);
+    },
+
+    async getDepartmentUsageForFiscalYear(deptId: string, fiscalYear: number): Promise<Record<string, number>> {
+        // Simple logic to map Thai Fiscal Year to Date range
+        // FY 2569 starts 2025-10-01, ends 2026-09-30
+        const startYear = fiscalYear - 544; // 2569 - 544 = 2025
+        const endYear = fiscalYear - 543;   // 2569 - 543 = 2026
+        const startDate = `${startYear}-10-01T00:00:00Z`;
+        const endDate = `${endYear}-09-30T23:59:59Z`;
+
+        const { data, error } = await supabase
+            .from('requisition_items')
+            .select('product_id, approved_quantity, requisitions!inner(department_id, status, approved_at)')
+            .eq('requisitions.department_id', deptId)
+            .eq('requisitions.status', 'Completed')
+            .gte('requisitions.approved_at', startDate)
+            .lte('requisitions.approved_at', endDate);
+
+        if (error) throw error;
+
+        const usageMap: Record<string, number> = {};
+        (data as any[] || []).forEach(item => {
+            const qty = item.approved_quantity || 0;
+            usageMap[item.product_id] = (usageMap[item.product_id] || 0) + qty;
+        });
+
+        return usageMap;
+    },
+
+    async getLockedProductsWithReasons(deptId: string): Promise<Record<string, string>> {
+        const { data } = await supabase
+            .from('product_assignments')
+            .select('product_id, lock_reason')
+            .eq('department_id', deptId)
+            .eq('is_locked', true);
+        
+        const lockedMap: Record<string, string> = {};
+        (data || []).forEach(item => {
+            lockedMap[item.product_id] = item.lock_reason || 'ไม่ได้ระบุเหตุผล';
+        });
+        return lockedMap;
+    },
+
+    async checkDepartmentMinMaxStatus(deptId: string): Promise<{ hasMissingMinMax: boolean; missingCount: number }> {
+        const { data } = await supabase
+            .from('department_inventory')
+            .select('product_id, min_stock, max_stock')
+            .eq('department_id', deptId);
+        
+        if (!data || data.length === 0) return { hasMissingMinMax: false, missingCount: 0 };
+        
+        const missing = data.filter(i => i.min_stock === null || i.max_stock === null);
+        return {
+            hasMissingMinMax: missing.length > 0,
+            missingCount: missing.length
+        };
+    },
+
     // Budget
     async getBudgetForFiscalYear(year: number): Promise<number | null> {
         const { data } = await supabase.from('system_settings').select('value').eq('key', `budget_${year}`).maybeSingle();

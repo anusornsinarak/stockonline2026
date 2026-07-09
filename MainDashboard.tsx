@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, AppView } from './types';
 import { DashboardOverview } from './components/DashboardOverview';
+import { supabaseService } from './services/supabaseService';
+import ExclamationTriangleIcon from './components/icons/ExclamationTriangleIcon';
+import XMarkIcon from './components/icons/XMarkIcon';
 
 // Icons
 import ClipboardDocumentListIcon from './components/icons/ClipboardDocumentListIcon';
@@ -43,6 +46,17 @@ interface DashboardItemConfig {
 
 const MainDashboard: React.FC<MainDashboardProps> = ({ user, onNavigate }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [minMaxWarning, setMinMaxWarning] = useState<{ show: boolean; count: number }>({ show: false, count: 0 });
+
+  useEffect(() => {
+    if (user.role === 'Department' && user.departmentId) {
+        supabaseService.checkDepartmentMinMaxStatus(user.departmentId).then(status => {
+            if (status.hasMissingMinMax) {
+                setMinMaxWarning({ show: true, count: status.missingCount });
+            }
+        });
+    }
+  }, [user.role, user.departmentId]);
 
   const getDashboardItems = (): DashboardItemConfig[] => {
     switch (user.role) {
@@ -109,6 +123,35 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onNavigate }) => {
 
   return (
     <div className="w-full max-w-[1600px] mx-auto p-4 md:p-6 lg:p-8">
+        {minMaxWarning.show && (
+            <div className="mb-6 animate-fade-in">
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-amber-100 dark:bg-amber-900/40 p-2 rounded-xl">
+                            <ExclamationTriangleIcon className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-amber-800 dark:text-amber-200">ตั้งค่าพัสดุไม่สมบูรณ์</h3>
+                            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">มีรายการ {minMaxWarning.count} รายการที่ยังไม่ได้ตั้งค่า Min/Max Stock กรุณาไปตั้งค่าที่เมนู "คลังของฉัน"</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => onNavigate({ type: 'department', payload: 'inventory' })}
+                            className="px-4 py-2 bg-amber-600 text-white text-xs font-bold rounded-xl hover:bg-amber-700 transition-colors shadow-sm active:scale-95"
+                        >
+                            ไปตั้งค่าเลย
+                        </button>
+                        <button 
+                            onClick={() => setMinMaxWarning({ ...minMaxWarning, show: false })}
+                            className="p-2 text-amber-400 hover:text-amber-600 dark:hover:text-amber-200 transition-colors"
+                        >
+                            <XMarkIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
         <div className="flex flex-col lg:flex-row gap-6">
             
             {/* Mobile Menu Toggle */}
