@@ -50,7 +50,7 @@ const App: React.FC = () => {
   const [department, setDepartment] = useState<Department | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [fySettings, setFySettings] = useState({ fy_survey_open: false, fy_survey_year: 2570, fy_previous_year: 2569 });
+  const [fySettings, setFySettings] = useState({ fy_survey_open: false, fy_survey_force: false, fy_survey_year: 2570, fy_previous_year: 2569 });
   const [isRequisitionOpen] = useState(true);
   const [documentSettings, setDocumentSettings] = useState<DocumentSettings | null>(null);
 
@@ -241,6 +241,7 @@ const App: React.FC = () => {
                 user={user}
                 department={department}
                 isSurveyOpen={fySettings.fy_survey_open}
+                isSurveyForce={fySettings.fy_survey_force}
                 surveyTitle={`แบบสำรวจความต้องการเวชภัณฑ์มิใช่ยา ประจำปีงบประมาณ ${fySettings.fy_survey_year}`}
                 isRequisitionOpen={isRequisitionOpen}
                 initialTab={activeView.payload}

@@ -29,7 +29,7 @@ const ManageAnnouncementsView: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const [fySettings, setFySettings] = useState({ fy_survey_open: false, fy_survey_year: 2570, fy_previous_year: 2569 });
+    const [fySettings, setFySettings] = useState({ fy_survey_open: false, fy_survey_force: false, fy_survey_year: 2570, fy_previous_year: 2569 });
 
     useEffect(() => {
         fetchData();
@@ -46,6 +46,14 @@ const ManageAnnouncementsView: React.FC = () => {
         setFySettings(newSettings);
         await supabaseService.saveFySurveySettings(newSettings);
         setStatusMessage({ type: 'success', text: `บันทึกการตั้งค่าแผนสำรวจปี ${fySettings.fy_survey_year} เรียบร้อย` });
+        setTimeout(() => setStatusMessage(null), 3000);
+    };
+
+    const handleFyForceToggle = async () => {
+        const newSettings = { ...fySettings, fy_survey_force: !fySettings.fy_survey_force };
+        setFySettings(newSettings);
+        await supabaseService.saveFySurveySettings(newSettings);
+        setStatusMessage({ type: 'success', text: `บันทึกการตั้งค่าบังคับสำรวจปี ${fySettings.fy_survey_year} เรียบร้อย` });
         setTimeout(() => setStatusMessage(null), 3000);
     };
 
@@ -185,6 +193,19 @@ const ManageAnnouncementsView: React.FC = () => {
                             className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 ml-4 ${fySettings.fy_survey_open ? 'bg-sky-600' : 'bg-slate-300 dark:bg-slate-600'}`}
                         >
                             <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${fySettings.fy_survey_open ? 'translate-x-5' : 'translate-x-0'}`}/>
+                        </button>
+                    </div>
+
+                    <div className="flex justify-between items-center bg-rose-50 dark:bg-rose-900/20 p-3 rounded-xl border border-rose-200 dark:border-rose-700/50 shadow-sm min-w-[280px]">
+                        <div className="flex flex-col">
+                            <span className="text-sm font-bold text-rose-800 dark:text-rose-300">บังคับสำรวจ</span>
+                            <span className="text-xs text-rose-600 dark:text-rose-400 font-medium">ระงับการใช้งานจนกว่าจะสำรวจเสร็จ</span>
+                        </div>
+                        <button
+                            onClick={handleFyForceToggle}
+                            className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500 ml-4 ${fySettings.fy_survey_force ? 'bg-rose-600' : 'bg-slate-300 dark:bg-slate-600'}`}
+                        >
+                            <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200 ${fySettings.fy_survey_force ? 'translate-x-5' : 'translate-x-0'}`}/>
                         </button>
                     </div>
                 </div>

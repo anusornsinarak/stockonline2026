@@ -26,6 +26,7 @@ interface DepartmentPortalProps {
     user: User;
     department: Department;
     isSurveyOpen: boolean;
+    isSurveyForce?: boolean;
     surveyTitle: string;
     isRequisitionOpen: boolean;
     initialTab?: Tab;
@@ -39,6 +40,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
     user,
     department,
     isSurveyOpen,
+    isSurveyForce,
     surveyTitle,
     isRequisitionOpen,
     initialTab,
@@ -74,18 +76,31 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
         }
     }, [nextFiscalYearBE]);
 
+    const hasSubmittedSurvey = allSurveyResults.some(r => r.departmentId === department.id);
+    const isLocked = isSurveyForce && !hasSubmittedSurvey && !isLoadingTabData;
+
+    useEffect(() => {
+        if (isLocked && activeTab !== 'survey' && activeTab !== 'inventory') {
+            setActiveTab('inventory'); // "เริ่มจากต้องทำ min/max ก่อน"
+        }
+    }, [isLocked, activeTab]);
+
     useEffect(() => {
         fetchCommonData();
     }, [fetchCommonData]);
-    
+
     useEffect(() => {
         if (initialTab && initialTab !== lastProcessedInitialTabRef.current) {
             setActiveTab(initialTab);
             lastProcessedInitialTabRef.current = initialTab;
         }
     }, [initialTab]);
-    
+
     const handleTabClick = (tab: Tab) => {
+        if (isLocked && tab !== 'survey' && tab !== 'inventory') {
+            alert('กรุณาระบุ Min/Max ในคลังของฉัน และทำแบบสำรวจให้เสร็จสิ้นก่อนใช้งานเมนูอื่น');
+            return;
+        }
         if (tab === 'requisition') {
             stopAlert();
         }
@@ -93,14 +108,14 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
         setIsMobileMenuOpen(false);
     };
 
-    const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-        { key: 'requisition', label: 'เบิกเวชภัณฑ์', icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" /> },
+    const TABS: { key: Tab; label: string; icon: React.ReactNode; disabled?: boolean }[] = [
+        { key: 'requisition', label: 'เบิกเวชภัณฑ์', icon: <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />, disabled: isLocked },
         { key: 'survey', label: 'แบบสำรวจ', icon: <DocumentTextIcon className="w-5 h-5 mr-2" /> },
         { key: 'inventory', label: 'คลังของฉัน', icon: <ArchiveBoxIcon className="w-5 h-5 mr-2" /> },
-        { key: 'usage_scanner', label: 'สแกนใช้ของ', icon: <QrCodeIcon className="w-5 h-5 mr-2" /> },
-        { key: 'backorders', label: 'ค้างจ่าย/ยืม', icon: <ArchiveBoxArrowDownIcon className="w-5 h-5 mr-2" /> },
-        { key: 'report', label: 'รายงานการเบิก', icon: <DocumentChartBarIcon className="w-5 h-5 mr-2" /> },
-        { key: 'settings', label: 'ตั้งค่าการแจ้งเตือน', icon: <MegaphoneIcon className="w-5 h-5 mr-2" /> },
+        { key: 'usage_scanner', label: 'สแกนใช้ของ', icon: <QrCodeIcon className="w-5 h-5 mr-2" />, disabled: isLocked },
+        { key: 'backorders', label: 'ค้างจ่าย/ยืม', icon: <ArchiveBoxArrowDownIcon className="w-5 h-5 mr-2" />, disabled: isLocked },
+        { key: 'report', label: 'รายงานการเบิก', icon: <DocumentChartBarIcon className="w-5 h-5 mr-2" />, disabled: isLocked },
+        { key: 'settings', label: 'ตั้งค่าการแจ้งเตือน', icon: <MegaphoneIcon className="w-5 h-5 mr-2" />, disabled: isLocked },
     ];
     
     const renderContent = () => {
@@ -135,6 +150,30 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
 
     return (
         <div className="max-w-7xl mx-auto relative">
+            {isLocked && (
+                <div className="bg-rose-50 border-l-4 border-rose-500 p-4 mb-6 rounded-r-lg shadow-sm">
+                    <div className="flex">
+                        <div className="flex-shrink-0">
+                            <DocumentTextIcon className="h-5 w-5 text-rose-400" />
+                        </div>
+                        <div className="ml-3">
+                            <h3 className="text-sm font-bold text-rose-800">
+                                ระงับการใช้งานชั่วคราว
+                            </h3>
+                            <div className="mt-2 text-sm text-rose-700">
+                                <p>
+                                    กรุณาดำเนินการตามขั้นตอนต่อไปนี้ เพื่อปลดล็อคการใช้งานระบบ:
+                                </p>
+                                <ul className="list-disc pl-5 mt-1 space-y-1">
+                                    <li>ไปที่แท็บ <strong>คลังของฉัน</strong> เพื่อระบุ Min/Max ของเวชภัณฑ์</li>
+                                    <li>ไปที่แท็บ <strong>แบบสำรวจ</strong> เพื่อกรอกและส่งแผนการใช้งานสำหรับปีงบประมาณ {nextFiscalYearBE}</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Mobile Menu Header */}
             <div className="md:hidden flex items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm mb-4 border border-slate-200 dark:border-slate-700 no-print">
                 <div className="flex items-center font-medium text-slate-800 dark:text-slate-200">
@@ -157,14 +196,18 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                             <button
                                 key={tab.key}
                                 onClick={() => handleTabClick(tab.key)}
+                                disabled={tab.disabled}
                                 className={`${
                                     activeTab === tab.key
                                     ? 'bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400 border-l-4 border-sky-500'
-                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 border-l-4 border-transparent'
+                                    : tab.disabled 
+                                        ? 'text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/50 cursor-not-allowed border-l-4 border-transparent'
+                                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 border-l-4 border-transparent'
                                 } flex items-center w-full px-4 py-3 text-left font-medium text-sm transition-colors`}
                             >
                                 {tab.icon}
                                 {tab.label}
+                                {tab.disabled && <span className="ml-auto text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full">ล็อค</span>}
                             </button>
                         ))}
                     </nav>
@@ -178,14 +221,18 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                          <button
                             key={tab.key}
                             onClick={() => handleTabClick(tab.key)}
+                            disabled={tab.disabled}
                             className={`${
                                 activeTab === tab.key
                                 ? 'border-sky-500 text-sky-600 dark:text-sky-400'
-                                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
-                            } flex items-center whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
+                                : tab.disabled
+                                    ? 'border-transparent text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                                    : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                            } flex items-center whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors relative`}
                         >
                             {tab.icon}
                             {tab.label}
+                            {tab.disabled && <span className="ml-2 text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">ล็อค</span>}
                         </button>
                     ))}
                 </nav>

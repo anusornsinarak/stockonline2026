@@ -891,17 +891,18 @@ export const supabaseService = {
 
     // FY 2027 Survey Helpers
     async getFySurveySettings() {
-        const { data } = await supabase.from('system_settings').select('*').in('key', ['fy_survey_open', 'fy_survey_year', 'fy_previous_year']);
-        const settings: any = { fy_survey_open: false, fy_survey_year: 2570, fy_previous_year: 2569 };
+        const { data } = await supabase.from('system_settings').select('*').in('key', ['fy_survey_open', 'fy_survey_year', 'fy_previous_year', 'fy_survey_force']);
+        const settings: any = { fy_survey_open: false, fy_survey_force: false, fy_survey_year: 2570, fy_previous_year: 2569 };
         (data || []).forEach((s: any) => {
             settings[s.key] = s.value;
         });
         return settings;
     },
 
-    async saveFySurveySettings(settings: { fy_survey_open: boolean; fy_survey_year: number; fy_previous_year: number }) {
+    async saveFySurveySettings(settings: { fy_survey_open: boolean; fy_survey_force: boolean; fy_survey_year: number; fy_previous_year: number }) {
         const updates = [
             supabase.from('system_settings').upsert({ key: 'fy_survey_open', value: settings.fy_survey_open }),
+            supabase.from('system_settings').upsert({ key: 'fy_survey_force', value: settings.fy_survey_force }),
             supabase.from('system_settings').upsert({ key: 'fy_survey_year', value: settings.fy_survey_year }),
             supabase.from('system_settings').upsert({ key: 'fy_previous_year', value: settings.fy_previous_year })
         ];
