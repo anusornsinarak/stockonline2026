@@ -205,11 +205,12 @@ export const RequisitionPrintView: React.FC<{
 const RequisitionListPrintView: React.FC<{
     requisitionsToPrint: Requisition[];
     departmentName: string;
-    selectedMonth: number | 'all';
+    startMonth: number | 'all';
+    endMonth: number | 'all';
     selectedYear: number | 'all';
     summaryStats: any;
     productMap: Map<string, Product>;
-}> = ({ requisitionsToPrint, departmentName, selectedMonth, selectedYear, summaryStats, productMap }) => {
+}> = ({ requisitionsToPrint, departmentName, startMonth, endMonth, selectedYear, summaryStats, productMap }) => {
     const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
     
     const printFooter = (
@@ -230,10 +231,10 @@ const RequisitionListPrintView: React.FC<{
                     <h2 className="text-xl font-bold">รายงานสรุปการเบิกจ่าย</h2>
                     <p className="text-base">หน่วยงาน: {departmentName}</p>
                     <p className="text-base">
-                        {selectedMonth === 'all' && selectedYear === 'all' ? 'ทุกเดือน ทุกปี' :
-                         selectedMonth === 'all' ? `ทุกเดือน ปี ${selectedYear as number + 543}` :
-                         selectedYear === 'all' ? `เดือน ${monthNames[selectedMonth as number - 1]} ทุกปี` :
-                         `ประจำเดือน ${monthNames[selectedMonth as number - 1]} ปี ${selectedYear as number + 543}`}
+                        {startMonth === 'all' && endMonth === 'all' 
+                            ? 'ทุกเดือน ' 
+                            : `ตั้งแต่เดือน ${(startMonth === 'all' ? 'มกราคม' : monthNames[startMonth as number - 1])} ถึง ${(endMonth === 'all' ? 'ธันวาคม' : monthNames[endMonth as number - 1])} `}
+                        {selectedYear === 'all' ? 'ทุกปี' : `ปี ${selectedYear as number + 543}`}
                     </p>
                 </div>
                 <div className="grid grid-cols-4 gap-4 mb-6 text-sm">
@@ -363,7 +364,8 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
 
     const productMap = useMemo(() => new Map(allProducts.map(p => [p.id, p])), [allProducts]);
     const monthNames = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
-    const [selectedMonth, setSelectedMonth] = useState<number | 'all'>('all');
+    const [startMonth, setStartMonth] = useState<number | 'all'>('all');
+    const [endMonth, setEndMonth] = useState<number | 'all'>('all');
     const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
     const yearOptions = useMemo(() => {
         const currentYear = new Date().getFullYear();
@@ -375,8 +377,10 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
             // Use approvedAt for completed requisitions, otherwise createdAt
             const reqDate = (r.status === 'Completed' && r.approvedAt) ? new Date(r.approvedAt) : new Date(r.createdAt);
             const matchYear = selectedYear === 'all' || reqDate.getFullYear() === selectedYear;
-            const matchMonth = selectedMonth === 'all' || (reqDate.getMonth() + 1) === selectedMonth;
-            return matchYear && matchMonth;
+            const reqMonth = reqDate.getMonth() + 1;
+            const matchStartMonth = startMonth === 'all' || reqMonth >= startMonth;
+            const matchEndMonth = endMonth === 'all' || reqMonth <= endMonth;
+            return matchYear && matchStartMonth && matchEndMonth;
         }).sort((a,b) => {
             if (a.requisitionNumber && b.requisitionNumber) {
                 const numCompare = b.requisitionNumber.localeCompare(a.requisitionNumber, undefined, {numeric: true});
@@ -384,7 +388,7 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
             }
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         });
-    }, [requisitions, selectedMonth, selectedYear]);
+    }, [requisitions, startMonth, endMonth, selectedYear]);
 
     const summaryStats = useMemo(() => {
         const calculateApprovedValue = (req: Requisition): number => {
@@ -580,7 +584,8 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
                         : filteredRequisitions
                     } 
                     departmentName={department.name} 
-                    selectedMonth={selectedMonth} 
+                    startMonth={startMonth}
+                    endMonth={endMonth}
                     selectedYear={selectedYear} 
                     summaryStats={summaryStats} 
                     productMap={productMap}
@@ -668,16 +673,29 @@ const RequisitionDashboard: React.FC<RequisitionDashboardProps> = ({ department,
                                     <span className="text-sm">พิมพ์ ({selectedReqIds.size})</span>
                                 </button>
                             )}
-                            <select 
-                                value={selectedMonth} 
-                                onChange={(e) => setSelectedMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                                className="flex-1 sm:flex-none p-2 text-sm border rounded-xl dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-2 focus:ring-sky-500"
-                            >
-                                <option value="all">ทุกเดือน</option>
-                                {monthNames.map((m, idx) => (
-                                    <option key={idx} value={idx + 1}>{m}</option>
-                                ))}
-                            </select>
+                            <div className="flex items-center gap-1">
+                                <select 
+                                    value={startMonth} 
+                                    onChange={(e) => setStartMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                                    className="flex-1 sm:flex-none p-2 text-sm border rounded-xl dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-2 focus:ring-sky-500"
+                                >
+                                    <option value="all">ตั้งแต่เดือน</option>
+                                    {monthNames.map((m, idx) => (
+                                        <option key={idx} value={idx + 1}>{m}</option>
+                                    ))}
+                                </select>
+                                <span className="text-slate-500">-</span>
+                                <select 
+                                    value={endMonth} 
+                                    onChange={(e) => setEndMonth(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                                    className="flex-1 sm:flex-none p-2 text-sm border rounded-xl dark:bg-slate-800 dark:border-slate-600 outline-none focus:ring-2 focus:ring-sky-500"
+                                >
+                                    <option value="all">ถึงเดือน</option>
+                                    {monthNames.map((m, idx) => (
+                                        <option key={idx} value={idx + 1}>{m}</option>
+                                    ))}
+                                </select>
+                            </div>
                             <select 
                                 value={selectedYear} 
                                 onChange={(e) => setSelectedYear(e.target.value === 'all' ? 'all' : Number(e.target.value))}
