@@ -870,6 +870,15 @@ export const supabaseService = {
             event: 'SURVEY_SUBMITTED',
             message: `Survey submitted for department ${deptId}.`
         });
+        
+        // Notify Admins
+        try {
+            const { data: dept } = await supabase.from('departments').select('name').eq('id', deptId).maybeSingle();
+            const deptName = dept?.name || 'ไม่ทราบหน่วยงาน';
+            await this.notifyAdmins(`หน่วยงาน ${deptName} ได้${existing ? 'อัปเดต' : 'ส่ง'}แบบสำรวจประจำปีงบประมาณ ${fiscalYear} แล้ว`, 'new_survey', '📋');
+        } catch (e) {
+            console.error("Failed to notify admins about survey submission", e);
+        }
     },
 
     async getSurveySubmissions(fiscalYear: number): Promise<SurveyEntry[]> {

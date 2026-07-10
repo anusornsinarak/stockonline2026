@@ -30,6 +30,7 @@ const ManageAnnouncementsView: React.FC = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [fySettings, setFySettings] = useState({ fy_survey_open: false, fy_survey_force: false, fy_survey_year: 2570, fy_previous_year: 2569 });
+    const [surveyProgress, setSurveyProgress] = useState({ submitted: 0, total: 0 });
 
     useEffect(() => {
         fetchData();
@@ -39,6 +40,21 @@ const ManageAnnouncementsView: React.FC = () => {
     const fetchFySettings = async () => {
         const settings = await supabaseService.getFySurveySettings();
         setFySettings(settings);
+        
+        // Fetch progress
+        try {
+            const [depts, submissions] = await Promise.all([
+                supabaseService.getDepartments(),
+                supabaseService.getSurveySubmissions(settings.fy_survey_year)
+            ]);
+            // Only count active departments if possible, or all
+            setSurveyProgress({
+                submitted: submissions.length,
+                total: depts.length
+            });
+        } catch (error) {
+            console.error("Failed to fetch survey progress", error);
+        }
     };
 
     const handleFyToggle = async () => {
@@ -186,7 +202,7 @@ const ManageAnnouncementsView: React.FC = () => {
                     <div className="flex justify-between items-center bg-sky-50 dark:bg-sky-900/20 p-3 rounded-xl border border-sky-200 dark:border-sky-700/50 shadow-sm min-w-[280px]">
                         <div className="flex flex-col">
                             <span className="text-sm font-bold text-sky-800 dark:text-sky-300">เปิดระบบสำรวจปีงบ {fySettings.fy_survey_year}</span>
-                            <span className="text-xs text-sky-600 dark:text-sky-400 font-medium">ให้หน่วยงานเริ่มกรอกแผนการใช้</span>
+                            <span className="text-xs text-sky-600 dark:text-sky-400 font-medium">ความคืบหน้า: {surveyProgress.submitted}/{surveyProgress.total} หน่วยงาน</span>
                         </div>
                         <button
                             onClick={handleFyToggle}

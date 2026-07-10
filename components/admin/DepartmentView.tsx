@@ -105,6 +105,29 @@ export const DepartmentView: React.FC<DepartmentViewProps> = ({ results, product
         try {
             const quantitiesToSave = editedQuantities[deptId];
             if (quantitiesToSave) {
+                const originalResult = results.find(r => r.departmentId === deptId);
+                const originalQuantities = originalResult?.quantities || {};
+                
+                const reducedProducts: string[] = [];
+                Object.entries(quantitiesToSave).forEach(([productId, data]) => {
+                    const oldQuantity = (originalQuantities[productId] as any)?.quantity || 0;
+                    if (data.quantity < oldQuantity) {
+                        const productName = productMap.get(productId)?.name || 'ไม่ทราบชื่อ';
+                        reducedProducts.push(`${productName} (จาก ${oldQuantity} เหลือ ${data.quantity})`);
+                    }
+                });
+
+                if (reducedProducts.length > 0) {
+                    try {
+                        await supabaseService.notifyDepartmentUsers(
+                            deptId, 
+                            `ผู้ดูแลระบบได้ปรับลดยอดสำรวจของคุณเนื่องจากเกินงบประมาณจัดซื้อ หรือเหตุผลอื่นๆ รายการ: ${reducedProducts.join(', ')}`
+                        );
+                    } catch (e) {
+                        console.error("Failed to notify department users:", e);
+                    }
+                }
+
                 await supabaseService.submitSurvey(deptId, fiscalYear, quantitiesToSave);
                 alert('บันทึกข้อมูลสำเร็จ!');
                 onDataChange();

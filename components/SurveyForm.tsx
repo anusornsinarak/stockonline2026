@@ -405,7 +405,7 @@ const SurveyForm: React.FC<SurveyFormProps> = ({ department, isSurveyOpen, title
                     disabled={isSubmitting || products.length === 0 || !isSurveyOpen}
                     className="bg-sky-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-slate-400 dark:disabled:bg-slate-600 transition-colors"
                 >
-                    {isSubmitting ? 'กำลังส่ง...' : 'ส่งข้อมูล'}
+                    {isSubmitting ? 'กำลังส่ง...' : (allSurveyResults.some(r => r.departmentId === department.id) ? 'อัปเดตข้อมูลการสำรวจ' : 'ส่งข้อมูล')}
                 </button>
             </div>
         </form>
