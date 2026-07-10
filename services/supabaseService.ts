@@ -301,7 +301,7 @@ export const supabaseService = {
             id: r.id, requisitionNumber: r.requisition_number, departmentId: r.department_id, name: r.name,
             status: r.status as any, type: r.type as any, urgentReason: r.urgent_reason, createdAt: new Date(r.created_at),
             submittedAt: r.submitted_at ? new Date(r.submitted_at) : null,
-            approvedAt: (r as any).approved_at ? new Date((r as any).approved_at) : null,
+            approvedAt: (r as any).submitted_at ? new Date((r as any).submitted_at) : null,
             requesterName: r.requester_name,
             requesterPosition: r.requester_position, approverName: r.approver_name, approverPosition: r.approver_position,
             receiverName: r.receiver_name,
@@ -322,7 +322,7 @@ export const supabaseService = {
             id: r.id, requisitionNumber: r.requisition_number, departmentId: r.department_id, name: r.name,
             status: r.status as any, type: r.type as any, urgentReason: r.urgent_reason, createdAt: new Date(r.created_at),
             submittedAt: r.submitted_at ? new Date(r.submitted_at) : null,
-            approvedAt: (r as any).approved_at ? new Date((r as any).approved_at) : null,
+            approvedAt: (r as any).submitted_at ? new Date((r as any).submitted_at) : null,
             requesterName: r.requester_name,
             requesterPosition: r.requester_position, approverName: r.approver_name, approverPosition: r.approver_position, receiverName: r.receiver_name,
             rejectionReason: r.rejection_reason,
@@ -635,19 +635,19 @@ export const supabaseService = {
         
         const originalQtyMap = new Map(originalItems?.map(i => [i.product_id, i.quantity]) || []);
 
-        // Fetch original requisition to check its approved_at date and requisition_number
+        // Fetch original requisition to check its submitted_at date and requisition_number
         const { data: originalReq } = await supabase
             .from('requisitions')
-            .select('approved_at, requisition_number')
+            .select('submitted_at, requisition_number')
             .eq('id', reqId)
             .single();
 
         await supabase.rpc('process_requisition_approval', { p_requisition_id: reqId, p_items: items as any, p_edit_reason: 'Simple Approval' });
         
-        // Update requisition status and approved_at (only if not already set)
+        // Update requisition status and submitted_at (only if not already set)
         const updateData: any = { status: status };
-        if (!originalReq?.approved_at) {
-            updateData.approved_at = new Date().toISOString();
+        if (!originalReq?.submitted_at) {
+            updateData.submitted_at = new Date().toISOString();
         }
         // Restore original requisition_number if the RPC changed it
         if (originalReq?.requisition_number) {
@@ -686,19 +686,19 @@ export const supabaseService = {
         
         const originalQtyMap = new Map(originalItems?.map(i => [i.product_id, i.quantity]) || []);
 
-        // Fetch original requisition to check its approved_at date and requisition_number
+        // Fetch original requisition to check its submitted_at date and requisition_number
         const { data: originalReq } = await supabase
             .from('requisitions')
-            .select('approved_at, requisition_number')
+            .select('submitted_at, requisition_number')
             .eq('id', reqId)
             .single();
 
         await supabase.rpc('process_requisition_approval', { p_requisition_id: reqId, p_items: items as any, p_edit_reason: editReason });
         
         const updateData: any = {};
-        // Set approved_at to current date only if not already set
-        if (!originalReq?.approved_at) {
-            updateData.approved_at = new Date().toISOString();
+        // Set submitted_at to current date only if not already set
+        if (!originalReq?.submitted_at) {
+            updateData.submitted_at = new Date().toISOString();
         }
         // Restore original requisition_number if the RPC changed it
         if (originalReq?.requisition_number) {
@@ -918,11 +918,11 @@ export const supabaseService = {
 
         const { data, error } = await supabase
             .from('requisition_items')
-            .select('product_id, approved_quantity, quantity, requisitions!inner(department_id, status, approved_at)')
+            .select('product_id, approved_quantity, quantity, requisitions!inner(department_id, status, created_at)')
             .eq('requisitions.department_id', deptId)
             .in('requisitions.status', ['Completed', 'Ready', 'PartiallyApproved'])
-            .gte('requisitions.approved_at', startDate)
-            .lte('requisitions.approved_at', endDate);
+            .gte('requisitions.created_at', startDate)
+            .lte('requisitions.created_at', endDate);
 
         if (error) throw error;
 
