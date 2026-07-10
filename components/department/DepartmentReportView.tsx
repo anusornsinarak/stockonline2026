@@ -27,7 +27,13 @@ const DepartmentReportView: React.FC<DepartmentReportViewProps> = ({ department 
     const [inventory, setInventory] = useState<DepartmentInventoryItem[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     
-    const [selectedMonth, setSelectedMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
+    const currentDate = new Date();
+    const firstDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().split('T')[0];
+    const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    const [startDate, setStartDate] = useState<string>(firstDay);
+    const [endDate, setEndDate] = useState<string>(lastDay);
+    const [selectedProductId, setSelectedProductId] = useState<string>('all');
     const [isPrinting, setIsPrinting] = useState(false);
 
     useEffect(() => {
@@ -54,9 +60,10 @@ const DepartmentReportView: React.FC<DepartmentReportViewProps> = ({ department 
     }, [department.id]);
 
     const reportData = useMemo(() => {
-        const [year, month] = selectedMonth.split('-');
+        const start = new Date(`${startDate}T00:00:00`);
+        const end = new Date(`${endDate}T23:59:59`);
         
-        // Filter requisitions for the selected month and status
+        // Filter requisitions for the selected date range and status
         const filteredReqs = requisitions.filter(req => {
             // Include Ready, PartiallyApproved, Picking, and Submitted as they represent confirmed or pending usage
             if (!['Completed', 'Ready', 'PartiallyApproved', 'Picking', 'Submitted'].includes(req.status)) return false;
@@ -66,13 +73,16 @@ const DepartmentReportView: React.FC<DepartmentReportViewProps> = ({ department 
             if (!rawDate) return false;
             
             const dateObj = new Date(rawDate);
-            return dateObj.getFullYear() === parseInt(year) && (dateObj.getMonth() + 1) === parseInt(month);
+            return dateObj >= start && dateObj <= end;
         });
 
         const itemMap = new Map<string, ReportItem>();
 
         filteredReqs.forEach(req => {
             req.items?.forEach(item => {
+                // Check selected product filter
+                if (selectedProductId !== 'all' && item.productId !== selectedProductId) return;
+
                 // Use approvedQuantity if available, otherwise fallback to requested quantity for legacy data
                 const approvedQty = item.approvedQuantity ?? item.quantity ?? 0;
                 
@@ -115,7 +125,7 @@ const DepartmentReportView: React.FC<DepartmentReportViewProps> = ({ department 
         });
 
         return Array.from(itemMap.values()).sort((a, b) => a.product.name.localeCompare(b.product.name, 'th'));
-    }, [requisitions, inventory, products, selectedMonth]);
+    }, [requisitions, inventory, products, startDate, endDate, selectedProductId]);
 
     const totalReportValue = reportData.reduce((sum, item) => sum + item.totalValue, 0);
 
@@ -137,7 +147,7 @@ const DepartmentReportView: React.FC<DepartmentReportViewProps> = ({ department 
             try {
                 await navigator.share({
                     title: `รายงานการเบิกเวชภัณฑ์ - ${department.name}`,
-                    text: `รายงานการเบิกเวชภัณฑ์ประจำเดือน ${selectedMonth} ของหน่วยงาน ${department.name}\nมูลค่ารวม: ฿${totalReportValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                    text: `รายงานการเบิกเวชภัณฑ์ตั้งแต่วันที่ ${startDate} ถึง ${endDate} ของหน่วยงาน ${department.name}\nมูลค่ารวม: ฿${totalReportValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
                     url: window.location.href,
                 });
             } catch (error) {
@@ -156,16 +166,35 @@ const DepartmentReportView: React.FC<DepartmentReportViewProps> = ({ department 
             <div className="no-print">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                     <div>
-                        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">รายงานการเบิกประจำเดือน</h2>
+                        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">รายงานการเบิก</h2>
                         <p className="text-slate-600 dark:text-slate-300">หน่วยงาน: <span className="font-semibold">{department.name}</span></p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                        <input 
-                            type="month" 
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(e.target.value)}
-                            className="p-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white"
-                        />
+                    <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                        <select
+                            value={selectedProductId}
+                            onChange={(e) => setSelectedProductId(e.target.value)}
+                            className="p-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white min-w-[200px]"
+                        >
+                            <option value="all">ทุกรายการ</option>
+                            {products.map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                        </select>
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="date" 
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="p-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                            />
+                            <span className="text-slate-500">-</span>
+                            <input 
+                                type="date" 
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="p-2 border rounded-lg dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+                            />
+                        </div>
                         <button
                             onClick={handlePrint}
                             className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -189,12 +218,11 @@ const DepartmentReportView: React.FC<DepartmentReportViewProps> = ({ department 
                 <div className="text-center mb-6">
                     <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 print:text-black">รายงานการเบิกเวชภัณฑ์มิใช่ยา</h1>
                     <p className="text-slate-600 dark:text-slate-300 print:text-black">หน่วยงาน {department.name}</p>
-                    <p className="text-slate-600 dark:text-slate-300 print:text-black">ประจำเดือน: {selectedMonth}</p>
+                    <p className="text-slate-600 dark:text-slate-300 print:text-black">ตั้งแต่วันที่: {startDate} ถึง {endDate}</p>
                 </div>
-
                 {reportData.length === 0 ? (
                     <div className="text-center py-12 text-slate-500 dark:text-slate-400 print:text-black">
-                        ไม่พบข้อมูลการเบิกที่เสร็จสมบูรณ์ในเดือนนี้
+                        ไม่พบข้อมูลการเบิกในช่วงเวลานี้
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
