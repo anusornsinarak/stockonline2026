@@ -13,10 +13,11 @@ interface DashboardOverviewProps {
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ user }) => {
     const [isLoading, setIsLoading] = useState(true);
-    const [requisitions, setRequisitions] = useState<Requisition[]>([]);
+    const [allRequisitions, setAllRequisitions] = useState<Requisition[]>([]);
     const [products, setProducts] = useState<Product[]>([]);
     const [departments, setDepartments] = useState<Department[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [timeRange, setTimeRange] = useState<'1M' | '3M' | '6M' | '1Y' | 'ALL'>('3M');
     const [announcement, setAnnouncement] = useState<{ content: string; enabled: boolean } | null>(null);
 
     useEffect(() => {
@@ -34,24 +35,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ user }) =>
                 setProducts(prods);
                 setDepartments(depts);
                 setAnnouncement(activeAnnouncement);
-                
-                // Filter requests roughly for current year/month to make dashboard relevant
-                const now = new Date();
-                const currentMonthReqs = reqs.filter(r => {
-                    const reqDate = r.approvedAt || r.submittedAt || r.createdAt;
-                    if (!reqDate) return false;
-                    const d = new Date(reqDate);
-                    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-                });
-                // but let's show all time or limit to recent 3 months to have good stats
-                const recentReqs = reqs.filter(r => {
-                    const reqDate = r.approvedAt || r.submittedAt || r.createdAt;
-                    if (!reqDate) return false;
-                    const d = new Date(reqDate);
-                    return d >= new Date(new Date().setMonth(new Date().getMonth() - 2));
-                });
-
-                setRequisitions(recentReqs);
+                setAllRequisitions(reqs);
             } catch (e) {
                 console.error(e);
             } finally {
@@ -60,6 +44,22 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ user }) =>
         };
         fetchData();
     }, [user]);
+
+    const requisitions = useMemo(() => {
+        if (timeRange === 'ALL') return allRequisitions;
+        const now = new Date();
+        const cutoff = new Date(now);
+        if (timeRange === '1M') cutoff.setMonth(now.getMonth() - 1);
+        else if (timeRange === '3M') cutoff.setMonth(now.getMonth() - 3);
+        else if (timeRange === '6M') cutoff.setMonth(now.getMonth() - 6);
+        else if (timeRange === '1Y') cutoff.setFullYear(now.getFullYear() - 1);
+        
+        return allRequisitions.filter(r => {
+            const reqDate = r.approvedAt || r.submittedAt || r.createdAt;
+            if (!reqDate) return false;
+            return new Date(reqDate) >= cutoff;
+        });
+    }, [allRequisitions, timeRange]);
 
     const formatNumber = (num: number) => num.toLocaleString('th-TH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
@@ -149,32 +149,53 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ user }) =>
 
     if (isLoading) return <LoadingScreen message="กำลังโหลดข้อมูลแดชบอร์ด..." />;
 
+    const timeRangeLabel = {
+        '1M': '1 เดือนล่าสุด',
+        '3M': '3 เดือนล่าสุด',
+        '6M': '6 เดือนล่าสุด',
+        '1Y': '1 ปีล่าสุด',
+        'ALL': 'ทั้งหมด'
+    }[timeRange];
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">ภาพรวมระบบ</h2>
-                <div className="relative">
-                    <input
-                        type="text"
-                        placeholder="ค้นหาชื่อเวชภัณฑ์..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg w-full md:w-64 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                    />
-                    <svg className="w-5 h-5 absolute left-3 top-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                    <select
+                        value={timeRange}
+                        onChange={(e) => setTimeRange(e.target.value as any)}
+                        className="py-2 pl-3 pr-8 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                    >
+                        <option value="1M">1 เดือนล่าสุด</option>
+                        <option value="3M">3 เดือนล่าสุด</option>
+                        <option value="6M">6 เดือนล่าสุด</option>
+                        <option value="1Y">1 ปีล่าสุด</option>
+                        <option value="ALL">ทั้งหมด</option>
+                    </select>
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="ค้นหาชื่อเวชภัณฑ์..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 pr-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg w-full md:w-64 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        />
+                        <svg className="w-5 h-5 absolute left-3 top-2.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    </div>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gradient-to-br from-sky-500 to-indigo-600 p-6 rounded-2xl text-white shadow-md">
                     <h3 className="font-semibold text-sky-100 flex items-center gap-2 mb-2">
-                        <CurrencyDollarIcon className="w-5 h-5" /> มูลค่าการเบิกจ่าย (3 เดือนล่าสุด)
+                        <CurrencyDollarIcon className="w-5 h-5" /> มูลค่าการเบิกจ่าย ({timeRangeLabel})
                     </h3>
                     <p className="text-3xl font-bold">{formatNumber(stats.totalCostThisPeriod)} <span className="text-lg font-normal">บาท</span></p>
                 </div>
                 <div className="bg-gradient-to-br from-rose-500 to-pink-600 p-6 rounded-2xl text-white shadow-md">
                     <h3 className="font-semibold text-rose-100 flex items-center gap-2 mb-2">
-                        <ChartBarIcon className="w-5 h-5" /> จำนวนรายการเบิกทั้งหมด (3 เดือนล่าสุด)
+                        <ChartBarIcon className="w-5 h-5" /> จำนวนรายการเบิกทั้งหมด ({timeRangeLabel})
                     </h3>
                     <p className="text-3xl font-bold">{requisitions.filter(r => ['Ready', 'PartiallyApproved', 'Completed', 'Picking'].includes(r.status)).length} <span className="text-lg font-normal">บิล</span></p>
                 </div>
