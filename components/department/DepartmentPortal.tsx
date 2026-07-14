@@ -11,6 +11,8 @@ import DepartmentInventoryView from './DepartmentInventoryView';
 import MegaphoneIcon from '../icons/MegaphoneIcon';
 import AccountSettingsPortal from '../AccountSettingsPortal';
 import ArchiveBoxArrowDownIcon from '../icons/ArchiveBoxArrowDownIcon';
+import Modal from '../Modal';
+import ExclamationTriangleIcon from '../icons/ExclamationTriangleIcon';
 import { DepartmentBackorderView } from './DepartmentBackorderView';
 import DepartmentUsageScanner from './DepartmentUsageScanner';
 import DepartmentReportView from './DepartmentReportView';
@@ -78,12 +80,22 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
 
     const hasSubmittedSurvey = allSurveyResults.some(r => r.departmentId === department.id);
     const isLocked = isSurveyForce && !hasSubmittedSurvey && !isLoadingTabData;
+    const [showLockModal, setShowLockModal] = useState(false);
+    const [hasAcknowledgedLock, setHasAcknowledgedLock] = useState(false);
 
     useEffect(() => {
-        if (isLocked && activeTab !== 'survey' && activeTab !== 'inventory') {
-            setActiveTab('inventory'); // "เริ่มจากต้องทำ min/max ก่อน"
+        if (isLocked && activeTab !== 'survey' && !hasAcknowledgedLock) {
+            setShowLockModal(true);
+        } else if (!isLocked) {
+            setShowLockModal(false);
         }
-    }, [isLocked, activeTab]);
+    }, [isLocked, activeTab, hasAcknowledgedLock]);
+
+    const handleAcknowledgeLock = () => {
+        setShowLockModal(false);
+        setHasAcknowledgedLock(true);
+        setActiveTab('survey');
+    };
 
     useEffect(() => {
         fetchCommonData();
@@ -98,7 +110,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
 
     const handleTabClick = (tab: Tab) => {
         if (isLocked && tab !== 'survey' && tab !== 'inventory') {
-            alert('กรุณาระบุ Min/Max ในคลังของฉัน และทำแบบสำรวจให้เสร็จสิ้นก่อนใช้งานเมนูอื่น');
+            alert('กรุณาทำแบบสำรวจความต้องการใช้งานประจำปีงบประมาณให้เสร็จสิ้นก่อนใช้งานเมนูอื่น');
             return;
         }
         if (tab === 'requisition') {
@@ -150,6 +162,31 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
 
     return (
         <div className="max-w-7xl mx-auto relative">
+            <Modal isOpen={showLockModal} onClose={() => {}} title="แจ้งเตือนการบังคับสำรวจความต้องการใช้งาน" size="md">
+                <div className="p-4">
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="bg-amber-100 dark:bg-amber-900/40 p-3 rounded-xl flex-shrink-0">
+                            <ExclamationTriangleIcon className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-amber-800 dark:text-amber-200">ระบบถูกระงับการใช้งานชั่วคราว</h3>
+                        </div>
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-300 mb-6 text-sm">
+                        กรุณาดำเนินการสำรวจความต้องการเวชภัณฑ์มิใช่ยาประจำปีงบประมาณ {nextFiscalYearBE} ให้แล้วเสร็จ และกดยืนยันส่งข้อมูล 
+                        เพื่อให้สามารถใช้งานระบบเบิกเวชภัณฑ์ได้ตามปกติ
+                    </p>
+                    <div className="flex justify-end gap-3">
+                        <button 
+                            onClick={handleAcknowledgeLock}
+                            className="px-6 py-2 bg-amber-600 text-white text-sm font-bold rounded-lg hover:bg-amber-700 transition-colors shadow-sm"
+                        >
+                            รับทราบ และไปหน้าสำรวจ
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
             {isLocked && (
                 <div className="bg-rose-50 border-l-4 border-rose-500 p-4 mb-6 rounded-r-lg shadow-sm">
                     <div className="flex">
@@ -165,8 +202,7 @@ export const DepartmentPortal: React.FC<DepartmentPortalProps> = ({
                                     กรุณาดำเนินการตามขั้นตอนต่อไปนี้ เพื่อปลดล็อคการใช้งานระบบ:
                                 </p>
                                 <ul className="list-disc pl-5 mt-1 space-y-1">
-                                    <li>ไปที่แท็บ <strong>คลังของฉัน</strong> เพื่อระบุ Min/Max ของเวชภัณฑ์</li>
-                                    <li>ไปที่แท็บ <strong>แบบสำรวจ</strong> เพื่อกรอกและส่งแผนการใช้งานสำหรับปีงบประมาณ {nextFiscalYearBE}</li>
+                                    <li>ไปที่แท็บ <strong>แบบสำรวจ</strong> เพื่อกรอกและส่งแบบสำรวจความต้องการใช้งานสำหรับปีงบประมาณ {nextFiscalYearBE} ให้เสร็จสมบูรณ์</li>
                                 </ul>
                             </div>
                         </div>
