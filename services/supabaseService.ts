@@ -451,6 +451,12 @@ export const supabaseService = {
         };
 
         if (!isNew) {
+            // Check current status to prevent race conditions (e.g. department edits after admin approved)
+            const { data: currentReq } = await supabase.from('requisitions').select('status').eq('id', reqId!).single();
+            if (currentReq && !['Draft', 'Submitted'].includes(currentReq.status)) {
+                throw new Error('ไม่สามารถแก้ไขใบเบิกนี้ได้เนื่องจากสถานะถูกเปลี่ยนแปลงไปแล้ว (อาจกำลังดำเนินการหรืออนุมัติแล้ว)');
+            }
+            
             await supabase.from('requisitions').update(requisitionData as any).eq('id', reqId!);
         } else {
             const { data, error } = await supabase.from('requisitions').insert(requisitionData as any).select().single();

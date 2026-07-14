@@ -328,7 +328,8 @@ const AutomatedRequisitionForm: React.FC<AutomatedRequisitionFormProps> = ({ dep
                 submittedAt: status === 'Submitted' ? new Date() : null,
                 requesterName: requesterName.trim() || null,
                 requesterPosition: requesterPosition.trim() || null,
-            };
+                requisitionNumber: initialRequisition?.requisitionNumber,
+            } as any;
             
             const savedReqId = await supabaseService.saveRequisition(requisitionData, itemsToSave, department.name);
 
